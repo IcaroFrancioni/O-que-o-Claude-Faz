@@ -101,6 +101,8 @@ var _phase: Phase = Phase.CLOSED
 var _index: int = 0
 var _hp_max: int = FALLBACK_HP_MAX
 var _player_dead: bool = false
+## False quando falta algum nó no Inspector: o quiz fica inerte em vez de quebrar.
+var _valid: bool = false
 ## Um item por questão já registrada: true = acertou, false = errou ou estourou o tempo.
 var _results: Array[bool] = []
 
@@ -120,9 +122,18 @@ func _exit_tree() -> void:
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS  # cronômetro e feedback andam com o jogo pausado
+	_valid = _validate_references()
+	if not _valid:
+		hide()
+		return
 	if perguntas.is_empty():
 		perguntas = _build_default_questions()
-	_countdown_fill = countdown_bar.get_theme_stylebox(&"fill") as StyleBoxFlat
+	# Cópia própria do estilo: trocar a cor do alerta não afeta o tema nem outras
+	# instâncias da cena (o StyleBox da cena é compartilhado entre elas).
+	var fill := countdown_bar.get_theme_stylebox(&"fill") as StyleBoxFlat
+	if fill != null:
+		_countdown_fill = fill.duplicate() as StyleBoxFlat
+		countdown_bar.add_theme_stylebox_override(&"fill", _countdown_fill)
 	answer_input.placeholder_text = "Insira aqui a resposta"
 	answer_input.text_submitted.connect(_on_answer_submitted)
 	submit_button.pressed.connect(_on_submit_pressed)
@@ -218,7 +229,7 @@ func _gui_input(event: InputEvent) -> void:
 
 ## Abre o quiz na primeira pergunta.
 func iniciar() -> void:
-	if _player_dead:
+	if not _valid or _player_dead:
 		return
 	_index = 0
 	_results.clear()
@@ -256,6 +267,8 @@ func _finish() -> void:
 	submit_button.hide()
 	# O timer segue rodando com o jogo pausado (process_always = true).
 	await get_tree().create_timer(FINAL_MESSAGE_TIME, true).timeout  # audit-ok: quiz roda pausado
+	if not is_inside_tree():
+		return  # A cena mudou durante a espera.
 	hide()
 	_phase = Phase.CLOSED
 	quiz_terminado.emit()
@@ -331,6 +344,23 @@ func _on_player_died() -> void:
 		_stop_countdown()
 		_lock_input()
 		feedback_timer.start()
+
+
+## True se todos os nós obrigatórios foram arrastados no Inspector.
+func _validate_references() -> bool:
+	var missing: PackedStringArray = []
+	if question_label == null: missing.append("question_label")
+	if answer_input == null: missing.append("answer_input")
+	if submit_button == null: missing.append("submit_button")
+	if feedback_timer == null: missing.append("feedback_timer")
+	if question_timer == null: missing.append("question_timer")
+	if countdown_box == null: missing.append("countdown_box")
+	if countdown_label == null: missing.append("countdown_label")
+	if countdown_bar == null: missing.append("countdown_bar")
+	if missing.is_empty():
+		return true
+	push_error("QuizScreen: referências não atribuídas no Inspector: %s" % ", ".join(missing))
+	return false
 
 
 ## Ignora espaços nas pontas e diferença entre maiúsculas e minúsculas.

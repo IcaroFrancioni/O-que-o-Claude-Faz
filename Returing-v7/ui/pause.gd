@@ -9,6 +9,10 @@ const ACTION_PAUSE: StringName = &"Pause"
 @onready var _bye_button: Button = $Bye_button
 
 var _previous_mouse_mode: Input.MouseMode = Input.MOUSE_MODE_VISIBLE
+## True só quando foi ESTE menu que pausou a árvore. Outra tela pode pausar o jogo
+## (o quiz da Fase 2 roda com a árvore pausada): nesse caso a tecla não despausa,
+## senão o jogo voltaria a andar por trás do quiz, sem nem mostrar o menu.
+var _paused_by_menu: bool = false
 
 
 func _ready() -> void:
@@ -24,8 +28,10 @@ func _ready() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not event.is_action_pressed(ACTION_PAUSE):
 		return
+	if get_tree().paused and not _paused_by_menu:
+		return  # pausa de outra tela (quiz): a tecla não mexe nela
 	get_viewport().set_input_as_handled()
-	if get_tree().paused:
+	if _paused_by_menu:
 		resume()
 	else:
 		pause()
@@ -33,6 +39,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func pause() -> void:
 	get_tree().paused = true
+	_paused_by_menu = true
 	visible = true
 	_previous_mouse_mode = Input.mouse_mode
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -41,6 +48,7 @@ func pause() -> void:
 
 func resume() -> void:
 	get_tree().paused = false
+	_paused_by_menu = false
 	visible = false
 	Input.mouse_mode = _previous_mouse_mode
 

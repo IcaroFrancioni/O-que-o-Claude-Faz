@@ -19,7 +19,20 @@ signal hit_landed(target: Node, damage_dealt: int)
 var wielder: Node = null
 
 var _attacking: bool = false
-var _cooldown_until_msec: int = 0
+## Recarga restante em segundos de jogo. Contada por delta (e não pelo relógio do
+## sistema) para respeitar a pausa e o Engine.time_scale, como o resto do projeto.
+var _cooldown_left: float = 0.0
+
+
+func _ready() -> void:
+	set_physics_process(false)  # só conta enquanto houver recarga pendente
+
+
+## Desconta a recarga; desliga o processamento assim que ela termina.
+func _physics_process(delta: float) -> void:
+	_cooldown_left = maxf(_cooldown_left - delta, 0.0)
+	if _cooldown_left <= 0.0:
+		set_physics_process(false)
 
 
 ## Associa a arma ao portador.
@@ -33,7 +46,7 @@ func is_attacking() -> bool:
 
 
 func can_attack() -> bool:
-	return not _attacking and Time.get_ticks_msec() >= _cooldown_until_msec
+	return not _attacking and _cooldown_left <= 0.0
 
 
 ## Inicia um ataque na direção dada. Subclasses implementam _start_attack().
@@ -70,7 +83,8 @@ func _finish(completed: bool) -> void:
 	if not _attacking:
 		return
 	_attacking = false
-	_cooldown_until_msec = Time.get_ticks_msec() + roundi(cooldown * 1000.0)
+	_cooldown_left = maxf(cooldown, 0.0)
+	set_physics_process(_cooldown_left > 0.0)
 	attack_finished.emit(completed)
 
 

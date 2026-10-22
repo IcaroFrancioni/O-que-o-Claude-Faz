@@ -28,6 +28,7 @@ var _swing_id: int = 0
 
 
 func _ready() -> void:
+	super._ready()
 	if hitbox == null:
 		push_warning("Sword '%s': 'hitbox' não atribuída." % name)
 		return

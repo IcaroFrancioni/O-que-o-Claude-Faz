@@ -31,7 +31,10 @@ func launch(direction: Vector2, travel_distance: float, damage: int, from_shoote
 	_remaining = maxf(travel_distance, 0.0)
 	_damage = damage
 	shooter = from_shooter
-	rotation = _direction.angle()
+	if is_inside_tree():
+		global_rotation = _direction.angle()
+	else:
+		rotation = _direction.angle()  # fora da árvore não há transform global
 	if hitbox != null:
 		hitbox.source = shooter  # nunca acerta quem lançou a onda
 
@@ -42,7 +45,9 @@ func _ready() -> void:
 		push_error("ShockWave: 'hitbox' e 'sprite' precisam ser atribuídos no Inspector.")
 		queue_free()
 		return
-	rotation = _direction.angle()
+	# `_direction` é um vetor de MUNDO: posição e rotação também são tratadas em
+	# mundo, senão a onda saía torta sob um pai com transform próprio.
+	global_rotation = _direction.angle()
 	hitbox.configure(_damage, true)
 	if shooter != null:
 		hitbox.source = shooter
@@ -57,7 +62,7 @@ func _physics_process(delta: float) -> void:
 		return
 	# O último passo é encurtado: a onda para exatamente no limite da Range 2.
 	var step: float = minf(speed * delta, _remaining)
-	position += _direction * step
+	global_position += _direction * step
 	_remaining -= step
 	_animate(delta)
 	if _remaining <= 0.0:

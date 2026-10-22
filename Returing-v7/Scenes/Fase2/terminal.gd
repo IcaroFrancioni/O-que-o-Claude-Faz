@@ -35,8 +35,9 @@ func _on_body_entered(body: Node2D) -> void:
 		_set_nearby(true)
 
 
+## O player pode estar sendo liberado ao mesmo tempo: valida antes de ler o grupo.
 func _on_body_exited(body: Node2D) -> void:
-	if body.is_in_group(CombatUtils.GROUP_PLAYER):
+	if CombatUtils.is_valid(body) and body.is_in_group(CombatUtils.GROUP_PLAYER):
 		_set_nearby(false)
 
 

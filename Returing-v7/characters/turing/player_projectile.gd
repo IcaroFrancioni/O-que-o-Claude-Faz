@@ -32,7 +32,9 @@ var _reached_cursor: bool = false
 ## Normaliza a direção e conecta as colisões.
 func _ready() -> void:
 	direction = direction.normalized() if direction != Vector2.ZERO else Vector2.RIGHT
-	rotation = direction.angle()
+	# `direction` é um vetor de MUNDO: posição e rotação também são tratadas em
+	# mundo, senão o tiro saía torto sob um pai com transform próprio.
+	global_rotation = direction.angle()
 	_life_left = lifetime
 	monitorable = false
 	body_entered.connect(_on_body_entered)
@@ -43,7 +45,7 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	if follow_cursor and not _reached_cursor:
 		_steer_to_cursor(delta)
-	position += direction * speed * delta
+	global_position += direction * speed * delta
 	_life_left -= delta
 	if _life_left <= 0.0:
 		_consumir()
@@ -65,7 +67,7 @@ func _steer_to_cursor(delta: float) -> void:
 	else:
 		angle = target_angle
 	direction = Vector2.from_angle(angle)
-	rotation = angle
+	global_rotation = angle
 
 
 ## Bateu em corpo: dano se der e some.

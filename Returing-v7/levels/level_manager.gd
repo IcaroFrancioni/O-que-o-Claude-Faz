@@ -62,6 +62,8 @@ func _on_enemy_registered(enemy: Node2D, _kind: StringName, _max_health: int) ->
 
 ## Desconta e vence se acabou (fase sem ondas).
 func _on_enemy_died(enemy: Node2D, _kind: StringName, _world_position: Vector2) -> void:
+	if not CombatUtils.is_valid(enemy):
+		return
 	if not _alive.erase(enemy.get_instance_id()):
 		return
 	_emit_remaining()
@@ -108,9 +110,10 @@ func _track(enemy: Node) -> void:
 		return  # já contado
 	_alive[id] = true
 	_had_enemies = true
-	# Inimigo removido sem morrer também sai da contagem
-	if not enemy.tree_exited.is_connected(_on_enemy_tree_exited):
-		enemy.tree_exited.connect(_on_enemy_tree_exited.bind(id))
+	# Inimigo removido sem morrer também sai da contagem.
+	# A conexão precisa ser testada COM o argumento preso: `_on_enemy_tree_exited`
+	# sozinho é outro Callable, e o teste nunca encontraria a conexão existente.
+	CombatUtils.connect_once(enemy.tree_exited, _on_enemy_tree_exited.bind(id))
 
 
 ## Inimigo saiu da árvore.

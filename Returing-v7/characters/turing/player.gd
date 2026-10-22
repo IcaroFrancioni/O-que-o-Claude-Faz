@@ -45,6 +45,8 @@ const ACTION_SHOOT: StringName = &"charge_shoot"
 const EIGHTH_TURN: float = PI / 4.0
 ## Índice numérico de cada sufixo de direção (chave do cache de animações).
 const _SUFFIX_INDEX: Dictionary[String, int] = {"side": 0, "down": 1, "up": 2}
+## Multiplicador do estado na chave do cache: estado * passo + índice do sufixo.
+const _ANIM_KEY_STRIDE: int = 3
 ## Folga somada à duração da espada antes de forçar a saída do ATTACK_MELEE.
 const MELEE_SAFETY_MARGIN: float = 0.25
 
@@ -317,19 +319,28 @@ func _enter_state(s: State) -> void:
 			_dash_left = dash_duration
 			_iframes_left = maxf(_iframes_left, iframes_duration)
 		State.ATTACK_MELEE:
-			velocity = Vector2.ZERO
-			# Golpe base: nasce apontando para o cursor (e o personagem vira para ele).
-			_atualizar_mira()
-			facing_direction = aim_direction
-			_sincronizar_facing()
-			_melee_safety_left = weapon.get_attack_duration() + MELEE_SAFETY_MARGIN
-			if not weapon.attack(aim_direction):
-				_melee_safety_left = 0.0  # arma recusou: sai no próximo frame
+			_iniciar_golpe()
 		State.ATTACK_RANGED:
 			_carga = 0.0
 			carga_mudou.emit(0.0)
 			_apontar_para_mouse()
 	_atualizar_animacao(true)
+
+
+## Entrada do ATTACK_MELEE: o golpe nasce apontando para o cursor (e o personagem
+## vira para ele). Sem arma equipada, sai no próximo frame em vez de quebrar:
+## change_state() é público, então o estado pode ser pedido de fora.
+func _iniciar_golpe() -> void:
+	velocity = Vector2.ZERO
+	_atualizar_mira()
+	facing_direction = aim_direction
+	_sincronizar_facing()
+	if weapon == null:
+		_melee_safety_left = 0.0
+		return
+	_melee_safety_left = weapon.get_attack_duration() + MELEE_SAFETY_MARGIN
+	if not weapon.attack(aim_direction):
+		_melee_safety_left = 0.0  # arma recusou: sai no próximo frame
 
 
 func _exit_state(s: State) -> void:
@@ -426,11 +437,8 @@ func _atualizar_animacao(force: bool = false) -> void:
 	if animation_player == null:
 		return
 	var suffix: String = _direction_suffix()
-	if sprite != null and suffix == "side":
-		var looking_left: bool = facing_direction.x < 0.0
-		var flipped: bool = looking_left if side_frames_face_right else not looking_left
-		sprite.flip_h = flipped
-		sprite.offset.x = -_sprite_offset_x if flipped else _sprite_offset_x
+	if suffix == "side":
+		_aplicar_flip_lateral()
 	var anim_name: StringName = _animation_for(state, suffix)
 	if anim_name == &"":
 		return
@@ -442,9 +450,20 @@ func _atualizar_animacao(force: bool = false) -> void:
 		animation_player.seek(0.0, true)
 
 
+## Espelha o sprite nos quadros laterais, mantendo o conteúdo centralizado
+## (o offset X também é espelhado).
+func _aplicar_flip_lateral() -> void:
+	if sprite == null:
+		return
+	var looking_left: bool = facing_direction.x < 0.0
+	var flipped: bool = looking_left if side_frames_face_right else not looking_left
+	sprite.flip_h = flipped
+	sprite.offset.x = -_sprite_offset_x if flipped else _sprite_offset_x
+
+
 ## Nome da animação do estado/direção, resolvido uma única vez e guardado em cache.
 func _animation_for(s: State, suffix: String) -> StringName:
-	var key: int = s * 8 + _SUFFIX_INDEX[suffix]
+	var key: int = s * _ANIM_KEY_STRIDE + _SUFFIX_INDEX[suffix]
 	if not _anim_cache.has(key):
 		_anim_cache[key] = _resolve_animation(ANIM_PREFIX[s], suffix)
 	return _anim_cache[key]

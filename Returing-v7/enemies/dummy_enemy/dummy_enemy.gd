@@ -96,8 +96,10 @@ func receber_dano(valor: int) -> void:
 
 # ---------- 2. ATAQUE PROJÉTIL ----------
 
-## Começa a atirar.
+## Começa a atirar. Os timers só existem depois do _ready.
 func iniciar_ataque_projetil() -> void:
+	if timer_projetil == null:
+		return
 	if timer_projetil.is_stopped():
 		_disparar_projetil()
 		timer_projetil.start()
@@ -105,12 +107,13 @@ func iniciar_ataque_projetil() -> void:
 
 ## Para de atirar.
 func parar_ataque_projetil() -> void:
-	timer_projetil.stop()
+	if timer_projetil != null:
+		timer_projetil.stop()
 
 
 ## True se atirando.
 func esta_atacando_projetil() -> bool:
-	return not timer_projetil.is_stopped()
+	return timer_projetil != null and not timer_projetil.is_stopped()
 
 
 ## Atira no player.
@@ -143,7 +146,8 @@ func iniciar_ataque_onda() -> void:
 ## Para as ondas.
 func parar_ataque_onda() -> void:
 	_onda_ligada = false
-	timer_onda.stop()
+	if timer_onda != null:
+		timer_onda.stop()
 
 
 ## True se soltando ondas.
@@ -170,7 +174,7 @@ func _lancar_onda() -> void:
 ## Onda acabou: agenda a próxima.
 func _ao_onda_finalizada() -> void:
 	_onda_atual = null
-	if _onda_ligada:
+	if _onda_ligada and timer_onda != null:
 		timer_onda.start()  # intervalo conta depois que a onda some
 
 

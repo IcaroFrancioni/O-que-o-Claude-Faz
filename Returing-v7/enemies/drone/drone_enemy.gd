@@ -37,7 +37,9 @@ const DEFAULT_RANGE2_RADIUS: float = 110.0
 
 var target_in_attack_range: bool = false
 
-var _next_wave_msec: int = 0
+## Recarga da onda em segundos de jogo. Contada por delta (e não pelo relógio do
+## sistema) para respeitar a pausa e o Engine.time_scale, como o resto do projeto.
+var _wave_cooldown_left: float = 0.0
 
 
 func _on_enemy_ready() -> void:
@@ -50,6 +52,11 @@ func _on_enemy_ready() -> void:
 	if range2_area != null:
 		CombatUtils.connect_once(range2_area.body_entered, _on_range2_body_entered)
 		CombatUtils.connect_once(range2_area.body_exited, _on_range2_body_exited)
+
+
+## Desconta a recarga da onda de choque.
+func _physics_process(delta: float) -> void:
+	_wave_cooldown_left = maxf(_wave_cooldown_left - delta, 0.0)
 
 
 func can_see_target() -> bool:
@@ -93,9 +100,9 @@ func _on_range2_body_exited(body: Node2D) -> void:
 
 ## Lança a onda do centro do drone em direção a `aim_at`, com alcance = raio da Range 2.
 func _launch_wave(aim_at: Vector2) -> void:
-	if is_dead() or Time.get_ticks_msec() < _next_wave_msec:
+	if is_dead() or _wave_cooldown_left > 0.0:
 		return
-	_next_wave_msec = Time.get_ticks_msec() + roundi(wave_cooldown * 1000.0)
+	_wave_cooldown_left = maxf(wave_cooldown, 0.0)
 	var wave := CombatUtils.spawn(wave_scene, self, global_position, ShockWave) as ShockWave
 	if wave == null:
 		return

@@ -15,7 +15,9 @@ signal acertou(corpo: Node)
 
 var angulo_central: float = 0.0
 
-var _atingidos: Array[Node] = []
+## Alvos já atingidos: id da instância -> true (busca O(1), sem guardar
+## referências a nós que podem ser liberados durante o golpe).
+var _atingidos: Dictionary[int, bool] = {}
 
 
 ## Cria a forma e gira com Tween.
@@ -46,7 +48,8 @@ func _draw() -> void:
 
 ## Acerto único por alvo.
 func _registrar(corpo: Node) -> void:
-	if corpo in _atingidos:
+	var id: int = corpo.get_instance_id()
+	if _atingidos.has(id):
 		return
-	_atingidos.append(corpo)
+	_atingidos[id] = true
 	acertou.emit(corpo)

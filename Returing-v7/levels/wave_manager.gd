@@ -163,8 +163,14 @@ func _collect_spawn_points() -> bool:
 
 ## Ordem dos marcadores da onda: longe do Player primeiro.
 func _order_spawn_points() -> void:
-	_wave_points = _spawn_points.duplicate()
+	# Descarta marcadores removidos da cena entre uma onda e outra: ler
+	# global_position de um nó liberado quebraria o spawn da onda inteira.
+	_wave_points.assign(_spawn_points.filter(func(m: Marker2D) -> bool:
+		return CombatUtils.is_valid(m)))
 	_wave_points.shuffle()
+	if _wave_points.is_empty():
+		push_error("WaveManager: nenhum ponto de spawn válido; a onda não vai nascer.")
+		return
 	if min_player_distance <= 0.0 or not CombatUtils.is_targetable(_player):
 		return
 	var player_pos := _player.global_position
@@ -181,6 +187,8 @@ func _order_spawn_points() -> void:
 
 ## Próximo ponto de spawn (repete se faltar marcador).
 func _next_spawn_position() -> Vector2:
+	if _wave_points.is_empty():
+		return Vector2.ZERO  # sem marcador válido (já reportado em _order_spawn_points)
 	var marker: Marker2D = _wave_points[_next_spawn % _wave_points.size()]
 	_next_spawn += 1
 	var offset: Vector2 = Vector2.ZERO

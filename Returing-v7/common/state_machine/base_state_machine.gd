@@ -4,6 +4,11 @@ extends Node
 
 signal state_changed(previous_state: StringName, new_state: StringName)
 
+## Máximo de trocas em cadeia (um enter()/exit() que pede outra troca) resolvidas a
+## partir de uma única chamada. Protege contra dois estados que se pedem em laço:
+## sem o limite, a cadeia recursiva estoura a pilha e derruba o jogo.
+const MAX_CHAINED_TRANSITIONS: int = 8
+
 @export var initial_state: BaseState
 ## Inicia sozinha quando o ator termina o _ready.
 @export var auto_start: bool = true
@@ -21,6 +26,8 @@ var _states: Dictionary[StringName, BaseState] = {}  # Nome em minúsculas -> es
 var _started: bool = false
 var _transitioning: bool = false
 var _pending_state: StringName = &""
+## Trocas em cadeia já resolvidas a partir da chamada em curso.
+var _chain_depth: int = 0
 
 
 ## Registra os estados filhos e inicia depois do ator.
@@ -137,12 +144,20 @@ func transition_to(state_name: StringName) -> bool:
 
 
 ## Executa a troca pedida de dentro de um enter() ou exit().
+## A cadeia é limitada: dois estados que se pedem em laço param com um erro
+## em vez de recursão infinita.
 func _flush_pending() -> void:
 	if _pending_state == &"":
 		return
 	var pending := _pending_state
 	_pending_state = &""
+	if _chain_depth >= MAX_CHAINED_TRANSITIONS:
+		push_error("%s: trocas de estado em laço (última pedida: '%s'); cadeia interrompida." % [
+			name, pending])
+		return
+	_chain_depth += 1
 	transition_to(pending)
+	_chain_depth -= 1
 
 
 ## Alias de `transition_to`.

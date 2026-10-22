@@ -26,7 +26,9 @@ func _ready() -> void:
 	# Posição já definida pelo spawn
 	_start_position = global_position
 	_life_left = lifetime
-	rotation = _direction.angle()
+	# `_direction` é um vetor de MUNDO: posição e rotação também são tratadas em
+	# mundo, senão o tiro saía torto sob um pai com transform próprio.
+	global_rotation = _direction.angle()
 
 	if hitbox == null:
 		push_error("EnemyProjectile: 'hitbox' não foi atribuído no Inspector.")
@@ -43,7 +45,10 @@ func _ready() -> void:
 ## Direção e atirador (antes ou depois de entrar na árvore).
 func launch(direction: Vector2, from_shooter: Node = null) -> void:
 	_direction = direction.normalized() if direction != Vector2.ZERO else Vector2.RIGHT
-	rotation = _direction.angle()
+	if is_inside_tree():
+		global_rotation = _direction.angle()
+	else:
+		rotation = _direction.angle()  # fora da árvore não há transform global
 	if from_shooter != null:
 		shooter = from_shooter
 		if hitbox != null:
@@ -56,7 +61,7 @@ func launch(direction: Vector2, from_shooter: Node = null) -> void:
 func _physics_process(delta: float) -> void:
 	if _consumed:
 		return
-	position += _direction * speed * delta
+	global_position += _direction * speed * delta
 	if not _damage_maxed and hitbox != null:
 		hitbox.damage = _calculate_current_damage()
 

@@ -19,8 +19,15 @@ signal hit_landed(target: Area2D, damage_dealt: int)
 @export var source: Node = null
 
 var _active: bool = false
-var _already_hit: Array[Area2D] = []
-var _tick_cooldowns: Dictionary = {}  # Area2D -> float (segundos até o próximo tick)
+## Alvos já atingidos nesta ativação: id da instância -> true (busca O(1), sem
+## guardar referências a nós que podem ser liberados).
+var _already_hit: Dictionary[int, bool] = {}
+var _tick_cooldowns: Dictionary[Area2D, float] = {}  # Area2D -> segundos até o próximo tick
+## Alvos cujo cooldown venceu neste frame (reaproveitado para não alocar por frame).
+var _expired: Array[Area2D] = []
+## pulse() pedido antes de `monitoring` entrar em vigor: executa no próximo frame de física.
+var _pending_pulse: bool = false
+var _pending_pulse_reset: bool = false
 
 
 func _ready() -> void:
@@ -33,22 +40,14 @@ func _ready() -> void:
 	set_active(active_on_start)
 
 
-## Dano contínuo por alvo.
+## Dano contínuo por alvo e pulsos adiados.
 func _physics_process(delta: float) -> void:
+	if _pending_pulse:
+		_flush_pending_pulse()
 	if not _active or tick_interval <= 0.0 or _tick_cooldowns.is_empty():
-		set_physics_process(false)
+		_update_physics_process()
 		return
-	for key: Variant in _tick_cooldowns.keys():
-		if not CombatUtils.is_alive(key):
-			_tick_cooldowns.erase(key)
-			continue
-		var remaining: float = _tick_cooldowns[key] - delta
-		if remaining <= 0.0:
-			_try_hit(key as Area2D, true)
-			if not _active:
-				return
-			remaining += tick_interval
-		_tick_cooldowns[key] = remaining
+	_advance_tick_cooldowns(delta)
 
 
 func is_active() -> bool:
@@ -62,11 +61,12 @@ func set_active(value: bool) -> void:
 		_already_hit.clear()
 	else:
 		_tick_cooldowns.clear()
+		_pending_pulse = false
 	set_deferred(&"monitoring", value)
 	for child: Node in get_children():
 		if child is CollisionShape2D or child is CollisionPolygon2D:
 			child.set_deferred(&"disabled", not value)
-	set_physics_process(value and tick_interval > 0.0)
+	_update_physics_process()
 
 
 func activate() -> void:
@@ -83,17 +83,65 @@ func configure(new_damage: int, new_one_shot: bool, new_tick_interval: float = 0
 	one_hit_per_target = new_one_shot
 	tick_interval = 0.0 if new_one_shot else maxf(new_tick_interval, 0.05)
 	if is_node_ready():
-		set_physics_process(_active and tick_interval > 0.0)
+		_update_physics_process()
 
 
 ## Aplica dano imediatamente a tudo que está sobreposto.
+## `monitoring` entra em vigor de forma deferida: pedido no mesmo frame de
+## activate(), o pulso é adiado para o próximo frame de física em vez de ser perdido.
 func pulse(reset_hit_list: bool = true) -> void:
-	if not _active or not monitoring:
+	if not _active:
 		return
+	if not monitoring:
+		_pending_pulse = true
+		_pending_pulse_reset = reset_hit_list
+		_update_physics_process()
+		return
+	_do_pulse(reset_hit_list)
+
+
+func _do_pulse(reset_hit_list: bool) -> void:
 	if reset_hit_list:
 		_already_hit.clear()
 	for area: Area2D in get_overlapping_areas():
 		_try_hit(area, false)
+
+
+func _flush_pending_pulse() -> void:
+	_pending_pulse = false
+	if _active and monitoring:
+		_do_pulse(_pending_pulse_reset)
+
+
+## Desconta o tempo de cada alvo dentro da área e aplica o dano dos que venceram.
+func _advance_tick_cooldowns(delta: float) -> void:
+	_expired.clear()
+	for area: Area2D in _tick_cooldowns:
+		if not CombatUtils.is_alive(area):
+			_expired.append(area)
+			continue
+		var remaining: float = _tick_cooldowns[area] - delta
+		_tick_cooldowns[area] = remaining
+		if remaining <= 0.0:
+			_expired.append(area)
+
+	for area: Area2D in _expired:
+		if not CombatUtils.is_alive(area):
+			_tick_cooldowns.erase(area)
+			continue
+		_try_hit(area, true)
+		if not _active:
+			return
+		# O acerto pode ter matado o alvo (e disparado area_exited): só re-arma
+		# quem ainda está na lista. Soma o intervalo ao resto negativo, para que
+		# um frame longo não "coma" ticks.
+		if _tick_cooldowns.has(area):
+			_tick_cooldowns[area] = _tick_cooldowns[area] + tick_interval
+
+
+## _physics_process só roda quando há dano contínuo ou um pulso adiado.
+func _update_physics_process() -> void:
+	set_physics_process(_pending_pulse or (_active and tick_interval > 0.0))
 
 
 func _on_area_entered(area: Area2D) -> void:
@@ -103,7 +151,7 @@ func _on_area_entered(area: Area2D) -> void:
 		if damage_on_contact:
 			_try_hit(area, true)
 		_tick_cooldowns[area] = tick_interval
-		set_physics_process(true)
+		_update_physics_process()
 	elif damage_on_contact:
 		_try_hit(area, false)
 
@@ -125,11 +173,12 @@ func _is_valid_target(area: Area2D) -> bool:
 func _try_hit(area: Area2D, is_tick: bool) -> bool:
 	if not _active or not _is_valid_target(area):
 		return false
-	if not is_tick and one_hit_per_target and area in _already_hit:
+	var target_id: int = area.get_instance_id()
+	if not is_tick and one_hit_per_target and _already_hit.has(target_id):
 		return false
 	if not CombatUtils.apply_damage(area, damage, source):
 		return false
 	if not is_tick:
-		_already_hit.append(area)
+		_already_hit[target_id] = true
 	hit_landed.emit(area, damage)
 	return true

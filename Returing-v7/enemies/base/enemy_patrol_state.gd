@@ -77,7 +77,9 @@ func _update_rest(delta: float) -> void:
 
 func _update_walk(delta: float) -> void:
 	_leg_time_left -= delta
-	var arrived: bool = enemy.global_position.distance_to(_destination) <= arrive_distance
+	# Comparação ao quadrado: evita uma raiz quadrada por inimigo a cada frame.
+	var arrived: bool = enemy.global_position.distance_squared_to(_destination) \
+			<= arrive_distance * arrive_distance
 	if arrived or _leg_time_left <= 0.0:
 		_begin_rest(randf_range(rest_time_min, rest_time_max))
 		return
@@ -95,11 +97,12 @@ func _begin_rest(duration: float) -> void:
 
 ## Sorteia um destino alcançável em linha reta e começa a caminhar; sem opção, descansa.
 func _begin_walk() -> void:
+	var min_leg_sq: float = min_leg_distance * min_leg_distance
 	for _attempt: int in PICK_ATTEMPTS:
 		var distance: float = randf_range(min_leg_distance, maxf(patrol_radius, min_leg_distance))
 		var wanted: Vector2 = _anchor_point + Vector2.from_angle(randf() * TAU) * distance
 		var reachable: Vector2 = enemy.trim_to_free_space(wanted)
-		if enemy.global_position.distance_to(reachable) >= min_leg_distance:
+		if enemy.global_position.distance_squared_to(reachable) >= min_leg_sq:
 			_destination = reachable
 			_phase = Phase.WALK
 			_leg_time_left = _estimate_leg_time()

@@ -29,6 +29,9 @@ var _maximum: int = 1
 
 
 func _ready() -> void:
+	if sheet == null:
+		push_error("SpriteBar '%s': 'sheet' não foi atribuída; a barra não será desenhada." % name)
+		return
 	_frame_size = Vector2(sheet.get_width() / float(COLUMNS), sheet.get_height() / float(ROWS))
 	_atlas.atlas = sheet
 	texture = _atlas

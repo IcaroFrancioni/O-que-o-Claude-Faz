@@ -52,7 +52,11 @@ const ANIM_DEATH: StringName = &"death"
 @export var detection_area: Area2D
 @export var state_machine: StateWarden
 
-var target: Node2D = null
+## Alvo atual (o Player). Trocar o alvo invalida o cache de validade abaixo.
+var target: Node2D = null:
+	set(value):
+		target = value
+		_target_frame = -1
 var spawn_position: Vector2 = Vector2.ZERO
 
 var _dead: bool = false
@@ -60,6 +64,12 @@ var _flash_tween: Tween = null
 var _current_anim: StringName = &""
 var _sprite_offset_x: float = 0.0
 var _steering: ObstacleSteering = null
+## Hitboxes da cena, coletadas uma única vez (desligadas de uma vez na morte).
+var _hitboxes: Array[Hitbox] = []
+## Cache de has_target() por frame de física: a validação é feita várias vezes por
+## frame (estado + distância + direção) e cada uma custa has_method + call.
+var _target_frame: int = -1
+var _target_valid: bool = false
 
 
 func _enter_tree() -> void:
@@ -74,6 +84,7 @@ func _ready() -> void:
 	_connect_signals()
 	EnemyEvents.bind(self, enemy_kind, health)
 	_on_enemy_ready()
+	_collect_hitboxes()
 	if state_machine != null:
 		state_machine.start()
 
@@ -113,8 +124,13 @@ func _exit_tree() -> void:
 
 # --- Alvo -----------------------------------------------------------------------
 
+## Resolvido uma vez por frame de física (ver _target_frame).
 func has_target() -> bool:
-	return CombatUtils.is_targetable(target)
+	var frame: int = Engine.get_physics_frames()
+	if frame != _target_frame:
+		_target_frame = frame
+		_target_valid = CombatUtils.is_targetable(target)
+	return _target_valid
 
 
 func distance_sq_to_target() -> float:
@@ -310,11 +326,19 @@ func die() -> void:
 		detection_area.set_deferred(&"monitoring", false)
 	if body_collision != null:
 		body_collision.set_deferred(&"disabled", true)
-	for area: Node in find_children("*", "Area2D", true, false):
-		if area is Hitbox:
-			(area as Hitbox).set_active(false)
+	for hitbox: Hitbox in _hitboxes:
+		if CombatUtils.is_valid(hitbox):
+			hitbox.set_active(false)
 	_on_death()
 	_play_death_and_free()
+
+
+## Coleta as Hitboxes da cena uma única vez: percorrer a subárvore na morte
+## (find_children) custa uma varredura e uma alocação justamente no pior momento.
+func _collect_hitboxes() -> void:
+	_hitboxes.clear()
+	for node: Node in find_children("*", "Hitbox", true, false):
+		_hitboxes.append(node as Hitbox)
 
 
 ## Gancho de morte (ex.: Robo deixa armadilha).

@@ -43,6 +43,8 @@ func _on_content_registered(step_count: int) -> void:
 func _on_advance_requested() -> void:
 	if _finished:
 		return
+	if _step_count <= 0:
+		return  # nenhum conteúdo registrado: um clique não pode "terminar" a cutscene
 	if _step + 1 >= _step_count:
 		if not ResourceLoader.exists(next_scene):
 			return  # cena inválida: não trava o botão

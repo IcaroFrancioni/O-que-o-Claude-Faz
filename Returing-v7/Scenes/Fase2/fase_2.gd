@@ -16,6 +16,12 @@ var _quiz_failed: bool = false
 
 
 func _ready() -> void:
+	if quiz == null or terminal == null:
+		var missing: PackedStringArray = []
+		if quiz == null: missing.append("quiz")
+		if terminal == null: missing.append("terminal")
+		push_error("Fase2: referências não atribuídas no Inspector: %s" % ", ".join(missing))
+		return
 	quiz.hide()
 	quiz.process_mode = Node.PROCESS_MODE_ALWAYS  # o quiz roda com o jogo pausado
 	terminal.terminal_ativado.connect(_open_quiz)
