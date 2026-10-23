@@ -23,6 +23,8 @@ var current_state: BaseState = null
 var locked: bool = false
 
 var _states: Dictionary[StringName, BaseState] = {}  # Nome em minúsculas -> estado
+## Chaves já avisadas (ver _warn_once).
+var _warned: Dictionary[StringName, bool] = {}
 var _started: bool = false
 var _transitioning: bool = false
 var _pending_state: StringName = &""
@@ -110,6 +112,24 @@ func has_state(state_name: StringName) -> bool:
 	return _states.has(_key(state_name))
 
 
+## Nomes dos nós de estado registrados (para mensagens de diagnóstico).
+func get_state_names() -> PackedStringArray:
+	var names: PackedStringArray = []
+	for state: BaseState in _states.values():
+		names.append(state.name)
+	return names
+
+
+## Avisa uma única vez por chave. Um estado que pede um nome inexistente a cada
+## frame de física despejaria a mesma linha 60 vezes por segundo no console,
+## escondendo todo o resto.
+func _warn_once(key: StringName, message: String) -> void:
+	if _warned.has(key):
+		return
+	_warned[key] = true
+	push_warning(message)
+
+
 ## True se o estado atual tem este nome.
 func is_in_state(state_name: StringName) -> bool:
 	return current_state != null and _key(current_state.name) == _key(state_name)
@@ -121,7 +141,8 @@ func transition_to(state_name: StringName) -> bool:
 		return false
 	var next_state := get_state(state_name)
 	if next_state == null:
-		push_warning("%s: estado '%s' não encontrado." % [name, state_name])
+		_warn_once(state_name, "%s: estado '%s' não encontrado. Estados registrados: %s." % [
+			name, state_name, ", ".join(get_state_names())])
 		return false
 	if next_state == current_state:
 		return false

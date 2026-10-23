@@ -2,6 +2,16 @@ class_name StateWarden
 extends BaseStateMachine
 ## StateWarden: máquina de estados dos inimigos com estados canônicos (Idle, Patrol, Chase, Attack, Dead).
 ## Aceita nomes variados de nós (ver CANDIDATES) e expõe a transição por enum.
+##
+## Por que a camada canônica existe: os estados pedem transições por NOME DE NÓ
+## (request_transition(&"Chase")). Renomear um nó na cena, ou reaproveitar uma
+## máquina em um inimigo que chama o estado de outro jeito, deixaria o pedido sem
+## destino e o inimigo congelado. O Warden traduz o nome pedido para o estado
+## canônico equivalente e cai no nó que existe: o inimigo degrada em vez de travar.
+##
+## Também guarda, sem custo por frame, o estado canônico atual, o anterior e há
+## quanto tempo o inimigo está nele: o que a IA consulta com frequência vira leitura
+## de campo, em vez de reclassificar o nome do nó a cada chamada.
 enum State { IDLE, CHASE, ATTACK, DEAD, PATROL, NONE }
 
 ## Equivalente de `state_changed`, já traduzido para estados canônicos.
@@ -21,13 +31,25 @@ const REQUIRED: Array = [State.IDLE, State.CHASE, State.ATTACK]
 
 var _canonical_names: Dictionary[State, StringName] = {}
 var _dead: bool = false
+var _current_canonical: State = State.NONE
+var _previous_canonical: State = State.NONE
+var _time_in_state: float = 0.0
 
 
 ## Resolve os nomes canônicos.
 func _ready() -> void:
+	# Conectado ANTES do super: start() já emite state_changed, e o estado
+	# canônico atual precisa estar correto desde a primeira transição.
+	state_changed.connect(_on_state_changed)
 	super._ready()
 	_resolve_canonical_states()
-	state_changed.connect(_on_state_changed)
+
+
+## Conta há quanto tempo o inimigo está no estado atual (tempo de jogo).
+func _physics_process(delta: float) -> void:
+	_time_in_state += delta
+	super._physics_process(delta)
+
 
 ## True se existe um nó para o estado canônico.
 func has_canonical(canonical: State) -> bool:
@@ -42,19 +64,31 @@ func request(canonical: State) -> bool:
 		die()
 		return true
 	if not _canonical_names.has(canonical):
-		push_warning("%s: sem nó de estado para %s." % [name, State.keys()[canonical]])
+		_warn_once(StringName("canonical_%d" % canonical),
+			"%s: sem nó de estado para %s (aceitos: %s). Estados registrados: %s." % [
+				name, State.keys()[canonical], CANDIDATES[canonical], ", ".join(get_state_names())])
 		return false
 	return transition_to(_canonical_names[canonical])
 
 
-## Estado canônico atual (NONE se não houver).
+## Estado canônico atual (NONE se não houver). Leitura direta: sem custo.
 func get_canonical() -> State:
-	return to_canonical(current_state.name) if current_state != null else State.NONE
+	return _current_canonical
+
+
+## Estado canônico de onde o inimigo veio (NONE no primeiro estado).
+func get_previous_canonical() -> State:
+	return _previous_canonical
+
+
+## Segundos de jogo no estado atual. Útil para IA ("já ataquei tempo demais").
+func get_time_in_state() -> float:
+	return _time_in_state
 
 
 ## True se o estado atual corresponde ao canônico.
 func is_canonical(canonical: State) -> bool:
-	return get_canonical() == canonical
+	return _current_canonical == canonical
 
 
 ## True depois de die().
@@ -79,15 +113,30 @@ func die() -> void:
 
 
 ## Depois de die() só o estado Dead é aceito.
+## Nome de nó inexistente cai no estado canônico equivalente: um nó renomeado
+## (ou um estado que pede &"Attack" num inimigo que só tem "AttackRanged")
+## degrada para o mais próximo em vez de deixar o inimigo parado para sempre.
 func transition_to(state_name: StringName) -> bool:
 	if _dead and to_canonical(state_name) != State.DEAD:
 		return false
-	return super.transition_to(state_name)
+	if has_state(state_name):
+		return super.transition_to(state_name)
+
+	var canonical: State = to_canonical(state_name)
+	if canonical == State.NONE or not _canonical_names.has(canonical):
+		_warn_once(state_name, "%s: estado '%s' não existe e não tem equivalente canônico. Registrados: %s." % [
+			name, state_name, ", ".join(get_state_names())])
+		return false
+	var fallback: StringName = _canonical_names[canonical]
+	_warn_once(state_name, "%s: estado '%s' não existe; usando '%s' (%s) no lugar." % [
+		name, state_name, fallback, State.keys()[canonical]])
+	return super.transition_to(fallback)
 
 
 ## Converte o nome de um nó de estado no estado canônico (por prefixo).
+## Só roda em transição: get_canonical()/is_canonical() leem o campo já resolvido.
 static func to_canonical(state_name: StringName) -> State:
-	var key := String(state_name).to_lower()
+	var key: String = String(state_name).to_lower()
 	if key.is_empty():
 		return State.NONE
 	if key.begins_with("idle"):
@@ -102,6 +151,7 @@ static func to_canonical(state_name: StringName) -> State:
 		return State.ATTACK
 	return State.NONE
 
+
 ## Localiza os nós Idle/Chase/Attack/Dead entre os filhos.
 func _resolve_canonical_states() -> void:
 	_canonical_names.clear()
@@ -111,14 +161,24 @@ func _resolve_canonical_states() -> void:
 				_canonical_names[canonical] = get_state(candidate).name
 				break
 
+	# Fallback: um nó com nome fora da lista (ex.: "SpecialAttack") ainda é
+	# classificado por prefixo, para que o canônico não fique vazio à toa.
+	for state_name: String in get_state_names():
+		var canonical: State = to_canonical(StringName(state_name))
+		if canonical != State.NONE and not _canonical_names.has(canonical):
+			_canonical_names[canonical] = StringName(state_name)
+
 	for required: State in REQUIRED:
 		if not _canonical_names.has(required):
-			push_warning("%s: nenhum nó de estado para %s (nomes aceitos: %s)." % [
-				name, State.keys()[required], CANDIDATES[required]])
+			push_warning("%s: nenhum nó de estado para %s (nomes aceitos: %s). Registrados: %s." % [
+				name, State.keys()[required], CANDIDATES[required], ", ".join(get_state_names())])
 
 
 ## Trava a máquina ao entrar em Dead e emite o sinal canônico.
 func _on_state_changed(previous: StringName, new_state: StringName) -> void:
 	if _dead and to_canonical(new_state) == State.DEAD:
 		locked = true
-	warden_state_changed.emit(to_canonical(previous), to_canonical(new_state))
+	_previous_canonical = to_canonical(previous)
+	_current_canonical = to_canonical(new_state)
+	_time_in_state = 0.0
+	warden_state_changed.emit(_previous_canonical, _current_canonical)
