@@ -120,25 +120,28 @@ anchor_left = 0.5
 anchor_top = 1.0
 anchor_right = 0.5
 anchor_bottom = 1.0
-offset_left = -240.0
+offset_left = -260.0
 offset_top = -96.0
-offset_right = 240.0
+offset_right = 260.0
 offset_bottom = -40.0
 grow_horizontal = 2
 grow_vertical = 0
+theme = ExtResource("8_theme")
 theme_override_constants/separation = 24
 alignment = 1
 
 [node name="RetryButton" type="Button" parent="Root/GameOverPanel/GameOverBox"]
 visible = false
-custom_minimum_size = Vector2(220, 0)
+custom_minimum_size = Vector2(236, 56)
 layout_mode = 2
 text = "Tentar de novo"
+script = ExtResource("9_pixel_button")
 
 [node name="GameOverMenuButton" type="Button" parent="Root/GameOverPanel/GameOverBox"]
-custom_minimum_size = Vector2(220, 0)
+custom_minimum_size = Vector2(236, 56)
 layout_mode = 2
 text = "Menu principal"
+script = ExtResource("9_pixel_button")
 
 [node name="LevelCompletePanel" type="PanelContainer" parent="Root"]
 visible = false

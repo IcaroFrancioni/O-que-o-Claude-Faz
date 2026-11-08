@@ -6,7 +6,6 @@ extends Control
 @onready var _stars: TextureRect = $Stars
 @onready var _title: TextureRect = $Center/Column/Title
 @onready var _column: Control = $Center/Column
-@onready var _hint: Control = $Center/Column/Hint
 @onready var _menu_panel: Control = $Center/Column/MenuPanel
 @onready var _buttons: Control = $Center/Column/MenuPanel/Buttons
 @onready var _first_button: Button = $Center/Column/MenuPanel/Buttons/Start_button
@@ -47,12 +46,11 @@ func _show_main_page() -> void:
 
 
 ## Alterna a página visível da caixa (false = principal, true = configurações).
-## Nas configurações o logo e a dica saem para a caixa caber na tela.
+## Nas configurações o logo sai para a caixa caber na tela.
 func _set_page(settings: bool) -> void:
 	_buttons.visible = not settings
 	_settings.visible = settings
 	_title.visible = not settings
-	_hint.visible = not settings
 
 
 ## Fade rápido (<= 0,2 s) do conteúdo ao abrir o menu.
