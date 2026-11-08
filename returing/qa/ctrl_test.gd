@@ -57,7 +57,7 @@ func _rodar() -> void:
 	hab.command_unavailable.connect(func(m: StringName) -> void: avisos.append(m))
 
 	# 1) Sem habilidades (início da run): Ctrl só avisa.
-	_tecla(KEY_CTRL, true, true, KEY_LOCATION_LEFT)
+	_tecla(KEY_CTRL, true, false, KEY_LOCATION_LEFT)
 	await _frames(3)
 	_confere(not hab.command_active, "sem habilidades: modo comando não abre")
 	_confere(avisos.has(&"sem_habilidades"), "sem habilidades: o aviso é emitido (%s)" % [avisos])
@@ -72,7 +72,7 @@ func _rodar() -> void:
 	_confere(player.state == Player.State.IDLE, "Player parado (IDLE)")
 
 	# Apertar e soltar o Ctrl já basta: o modo fica aberto (não precisa segurar).
-	_tecla(KEY_CTRL, true, true, KEY_LOCATION_LEFT)
+	_tecla(KEY_CTRL, true, false, KEY_LOCATION_LEFT)
 	await _frames(3)
 	_tecla(KEY_CTRL, false, false, KEY_LOCATION_LEFT)
 	await _frames(3)
@@ -118,12 +118,12 @@ func _rodar() -> void:
 	await _frames(3)
 
 	# 4) Ctrl direito abre e apertar o Ctrl de novo cancela.
-	_tecla(KEY_CTRL, true, true, KEY_LOCATION_RIGHT)
+	_tecla(KEY_CTRL, true, false, KEY_LOCATION_RIGHT)
 	await _frames(3)
 	_tecla(KEY_CTRL, false, false, KEY_LOCATION_RIGHT)
 	await _frames(3)
 	_confere(hab.command_active, "Ctrl direito abre o modo comando")
-	_tecla(KEY_CTRL, true, true, KEY_LOCATION_RIGHT)
+	_tecla(KEY_CTRL, true, false, KEY_LOCATION_RIGHT)
 	await _frames(3)
 	_tecla(KEY_CTRL, false, false, KEY_LOCATION_RIGHT)
 	await _frames(3)

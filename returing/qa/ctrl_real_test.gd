@@ -98,7 +98,7 @@ func _usar_habilidade(rotulo: String, andando: bool, em_recarga: bool = false) -
 		_tecla(KEY_D, true)
 		await _frames(12)
 		_confere(_player.state == Player.State.MOVE, rotulo + ": Player andando (MOVE)")
-	_tecla(KEY_CTRL, true, true, KEY_LOCATION_LEFT)
+	_tecla(KEY_CTRL, true, false, KEY_LOCATION_LEFT)
 	await _frames(3)
 	_tecla(KEY_CTRL, false, false, KEY_LOCATION_LEFT)
 	await _frames(3)
@@ -121,7 +121,7 @@ func _usar_habilidade(rotulo: String, andando: bool, em_recarga: bool = false) -
 	_hab.input_failed.disconnect(contar)
 	if em_recarga:  # erro mantém o modo aberto: cancela com o Ctrl
 		_confere(_hab.command_active, rotulo + ": erro mantém o modo aberto")
-		_tecla(KEY_CTRL, true, true, KEY_LOCATION_LEFT)
+		_tecla(KEY_CTRL, true, false, KEY_LOCATION_LEFT)
 		await _frames(3)
 		_tecla(KEY_CTRL, false, false, KEY_LOCATION_LEFT)
 	await _frames(5)
@@ -142,7 +142,7 @@ func _rodar() -> void:
 	# Sem habilidade o Ctrl só avisa.
 	var avisos: Array[StringName] = []
 	_hab.command_unavailable.connect(func(m: StringName) -> void: avisos.append(m))
-	_tecla(KEY_CTRL, true, true, KEY_LOCATION_LEFT)
+	_tecla(KEY_CTRL, true, false, KEY_LOCATION_LEFT)
 	await _frames(3)
 	_tecla(KEY_CTRL, false, false, KEY_LOCATION_LEFT)
 	await _frames(3)
@@ -167,7 +167,7 @@ func _rodar() -> void:
 	_confere(menu != null and menu.is_open(), "menu de level-up abriu sozinho")
 	_confere(get_tree().paused, "menu pausa o jogo")
 	# Ctrl com o menu aberto não pode abrir o modo comando.
-	_tecla(KEY_CTRL, true, true, KEY_LOCATION_LEFT)
+	_tecla(KEY_CTRL, true, false, KEY_LOCATION_LEFT)
 	await _frames(3)
 	_confere(not _hab.command_active, "menu aberto: Ctrl não abre o modo comando")
 	_tecla(KEY_CTRL, false, false, KEY_LOCATION_LEFT)

@@ -59,8 +59,9 @@ func _toque(keycode: Key, lado: KeyLocation = KEY_LOCATION_UNSPECIFIED, ctrl: bo
 	await _frames(2)
 
 
+## O Windows entrega o aperto do Ctrl com ctrl_pressed = false (visto com teclas reais); é o caso do jogo.
 func _ctrl_toque(lado: KeyLocation = KEY_LOCATION_LEFT) -> void:
-	await _toque(KEY_CTRL, lado, true)
+	await _toque(KEY_CTRL, lado, false)
 
 
 func _digitar(teclas: Array[Key]) -> void:
@@ -235,10 +236,10 @@ func _rodar() -> void:
 	_confere(consistente and _aberto(), "15 toques alternando Ctrl esq./dir.: estado alterna certinho (termina aberto)")
 	await _ctrl_toque()
 	_confere(_fechado(), "mais um toque: fechado e tempo 1.0")
-	_tecla(KEY_CTRL, true, true, KEY_LOCATION_LEFT)
+	_tecla(KEY_CTRL, true, false, KEY_LOCATION_LEFT)
 	await _frames(2)
 	for i: int in 5:
-		_tecla(KEY_CTRL, true, true, KEY_LOCATION_LEFT, true)  # eco do sistema com a tecla segurada
+		_tecla(KEY_CTRL, true, false, KEY_LOCATION_LEFT, true)  # eco do sistema com a tecla segurada
 		await _frames(1)
 	_tecla(KEY_CTRL, false, false, KEY_LOCATION_LEFT)
 	await _frames(2)
@@ -253,7 +254,7 @@ func _rodar() -> void:
 	_confere(_hab._sequence.size() == 1, "seta segurada (eco) conta uma vez só (%d)" % _hab._sequence.size())
 	await _fechar_se_aberto()
 	_limpar()
-	_tecla(KEY_CTRL, true, true, KEY_LOCATION_LEFT)
+	_tecla(KEY_CTRL, true, false, KEY_LOCATION_LEFT)
 	await _frames(2)
 	await _digitar(_sequencia_para_teclas(escudo.sequence))
 	await _toque(KEY_ENTER)
@@ -446,7 +447,9 @@ func _testar_input_map() -> void:
 		var ev_ctrl := InputEventKey.new()
 		ev_ctrl.physical_keycode = KEY_CTRL
 		ev_ctrl.keycode = KEY_CTRL
-		ev_ctrl.ctrl_pressed = true
 		ev_ctrl.pressed = true
 		ev_ctrl.location = lado
-		_confere(InputMap.event_is_action(ev_ctrl, &"command_mode"), "Ctrl (lado %d) casa com command_mode" % lado)
+		for com_modificador: bool in [false, true]:
+			ev_ctrl.ctrl_pressed = com_modificador
+			_confere(InputMap.event_is_action(ev_ctrl, &"command_mode"),
+					"APERTAR o Ctrl (lado %d, ctrl_pressed=%s) casa com command_mode" % [lado, com_modificador])
