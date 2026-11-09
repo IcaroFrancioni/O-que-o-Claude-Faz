@@ -185,7 +185,7 @@ func _rodar() -> void:
 		_confere(is_equal_approx(chefe.move_speed, base * 0.7), "chefe: a Enigma o deixa 30%% mais lento (%.1f -> %.1f)" % [base, chefe.move_speed])
 		_hab._cancel_all_effects()
 		await _frames(3)
-		_confere(chefe.move_speed == base, "chefe: velocidade original exata depois de cortar a Enigma")
+		_confere(chefe.move_speed == base, "chefe: velocidade original exata depois de cortar a Enigma (%.4f e o original era %.4f; lento=%s)" % [chefe.move_speed, base, str(EnemySlow.is_slowed(chefe))])
 	_fase.queue_free()
 	await _frames(3)
 	print("habilidades_fluxo_test: %d verificações, %d falhas" % [_total, _falhas])

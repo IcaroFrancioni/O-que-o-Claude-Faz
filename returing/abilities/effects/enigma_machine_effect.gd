@@ -35,6 +35,8 @@ func _on_activate() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if _cleaned:
+		return  # cancelado: varrer de novo deixaria inimigos lentos para sempre (ninguém desfaria)
 	_age += delta
 	_time_left -= delta
 	_scan_left -= delta

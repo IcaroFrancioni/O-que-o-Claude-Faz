@@ -353,6 +353,16 @@ func _testar_enigma() -> void:
 	_confere(comum.move_speed == base_comum and chefe.move_speed == base_chefe and recem_nascido.move_speed == base_novo,
 			"Enigma: todas as velocidades voltam EXATAMENTE ao original")
 	_confere(not EnemySlow.is_slowed(comum) and not EnemySlow.is_slowed(chefe), "Enigma: sem lentidão sobrando")
+
+	# Regressão: um quadro de física depois do cancelamento não pode voltar a deixar inimigos lentos.
+	var cancelado: AbilityEffect = _efeito("EnigmaMachineEffect.tscn", _dados_curtos(&"maquina_enigma", 5.0))
+	_confere(EnemySlow.is_slowed(comum), "Enigma (regressão): ativa deixa o inimigo lento")
+	cancelado.cancel()
+	_confere(not EnemySlow.is_slowed(comum), "Enigma (regressão): cancelar desfaz a lentidão")
+	cancelado._scan_left = 0.0
+	cancelado._physics_process(0.1)  # o quadro de física que ainda poderia chegar antes de o nó ser liberado
+	_confere(not EnemySlow.is_slowed(comum) and comum.move_speed == base_comum,
+			"Enigma (regressão): nenhum quadro depois do cancelamento volta a deixar o inimigo lento")
 	for inimigo: EnemyBase in [comum, chefe, recem_nascido]:
 		inimigo.queue_free()
 	_inimigos.clear()

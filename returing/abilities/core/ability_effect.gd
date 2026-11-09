@@ -46,6 +46,7 @@ func _cleanup() -> void:
 	if _cleaned:
 		return
 	_cleaned = true
+	set_physics_process(false)  # o nó só é liberado no fim do frame: nenhum quadro de física depois da limpeza
 	_on_cleanup()
 
 

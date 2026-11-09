@@ -41,6 +41,8 @@ func _on_activate() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if _cleaned:
+		return
 	_age += delta
 	_time_left -= delta
 	queue_redraw()
