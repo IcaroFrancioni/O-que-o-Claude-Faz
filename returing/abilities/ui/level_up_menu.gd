@@ -186,18 +186,23 @@ func _build() -> void:
 	_cards_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.add_child(_cards_box)
 
+	# "Manter" e "Rerrolar" dividem uma linha: com 3 lendárias a altura do menu continua cabendo na tela.
+	var buttons_row: HBoxContainer = HBoxContainer.new()
+	buttons_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	buttons_row.add_theme_constant_override(&"separation", BOX_SEPARATION)
+	buttons_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_child(buttons_row)
+
 	_keep_button = PixelButton.new()
 	_keep_button.text = "Manter minhas habilidades"
-	_keep_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_keep_button.pressed.connect(_on_keep_pressed)
 	_keep_button.visible = false
-	box.add_child(_keep_button)
+	buttons_row.add_child(_keep_button)
 
 	_reroll_button = PixelButton.new()
 	_reroll_button.text = REROLL_TEXT
-	_reroll_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_reroll_button.pressed.connect(_on_reroll_pressed)
-	box.add_child(_reroll_button)
+	buttons_row.add_child(_reroll_button)
 
 	_build_confirm()
 
