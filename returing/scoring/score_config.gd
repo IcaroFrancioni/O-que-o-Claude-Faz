@@ -3,7 +3,7 @@ extends Resource
 ## Todos os números do cálculo de pontuação. Ajuste o balanceamento em `score_config.tres`
 ## (Inspector); nenhum valor fica solto no código do ScoreCalculator.
 
-const DEFAULT_PATH: String = "res://scoring/score_config.tres"
+const DEFAULT_PATH: String = "res://scoring/score_config.tres"  # Caminho da configuração padrão.
 
 @export_group("Tempo")
 ## Pontos de tempo com a run igual ou mais rápida que o tempo par.
@@ -40,7 +40,7 @@ const DEFAULT_PATH: String = "res://scoring/score_config.tres"
 @export var nomes_por_tipo: Dictionary[StringName, String] = {}
 
 @export_group("Variedade")
-@export var pontos_por_tipo_distinto: int = 300
+@export var pontos_por_tipo_distinto: int = 300  # Pontos por tipo diferente abatido.
 
 @export_group("Combo")
 ## Segundos (de tempo de jogo) entre dois abates para a sequência continuar.
@@ -49,8 +49,8 @@ const DEFAULT_PATH: String = "res://scoring/score_config.tres"
 @export var combo_minimo: int = 3
 ## Quantos abates da sequência não pagam bônus.
 @export var abates_sem_bonus_combo: int = 2
-@export var pontos_por_abate_acima_de_2: int = 50
-@export var teto_combo: int = 1000
+@export var pontos_por_abate_acima_de_2: int = 50  # Pontos por abate acima disso.
+@export var teto_combo: int = 1000  # Teto do bônus de combo.
 
 @export_group("Dano causado")
 ## Pontos por cada "vida do inimigo mais fraco" de dano efetivo causado.
@@ -65,7 +65,7 @@ const DEFAULT_PATH: String = "res://scoring/score_config.tres"
 @export_group("Quiz")
 ## Desliga a linha e o bônus do quiz.
 @export var quiz_ativo: bool = true
-@export var pontos_por_acerto: int = 300
+@export var pontos_por_acerto: int = 300  # Pontos por acerto.
 
 @export_group("Fluxo")
 ## Segundos (de jogo) entre o fim da última fase e a abertura da tela final.
@@ -80,10 +80,12 @@ const DEFAULT_PATH: String = "res://scoring/score_config.tres"
 
 
 ## Carrega o `score_config.tres` do projeto (cai nos valores padrão se faltar).
+## Carrega o `score_config.tres` (usa os valores padrão se o arquivo faltar).
 static func carregar() -> ScoreConfig:
-	if ResourceLoader.exists(DEFAULT_PATH):
-		var carregado := load(DEFAULT_PATH) as ScoreConfig
-		if carregado != null:
-			return carregado
+	if ResourceLoader.exists(DEFAULT_PATH):  # Arquivo existe.
+		var carregado := load(DEFAULT_PATH) as ScoreConfig  # Carrega o recurso.
+		if carregado != null:  # Carregou direito.
+			return carregado  # Devolve.
+	# Sem arquivo: avisa.
 	push_warning("ScoreConfig: '%s' não encontrado; usando os valores padrão." % DEFAULT_PATH)
-	return ScoreConfig.new()
+	return ScoreConfig.new()  # Valores padrão.
