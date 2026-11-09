@@ -4,8 +4,13 @@ extends Node2D
 ## É criado em tempo de execução pelo `DroneAllyEffect` como filho do Player (o `Turing.tscn` não muda).
 ## Os tiros vêm do `PoolHub` (`PlayerProjectile`, com `shooter` = Player, então nunca o acertam).
 
-## Raio (px) do corpo do drone.
-const BODY_RADIUS: float = 6.0
+## Sprite pixelado (gerado por `tests/gerar_sprites.gd`): 2 quadros com as hélices em posições diferentes.
+const SHEET_PATH: String = "res://abilities/sprites/ally_drone.png"
+const FRAME_SIZE: int = 16
+const FRAME_COUNT: int = 2
+const ROTOR_FPS: float = 24.0
+## Cada pixel do sprite vira 2x2 pixels na tela.
+const PIXEL_SCALE: int = 2
 
 var projectile_scene: PackedScene = null
 var damage: int = 18
@@ -16,13 +21,18 @@ var orbit_speed: float = 2.2
 var aim_range: float = 280.0
 ## Carga (0 a 1) usada só para o tamanho do tiro.
 var shot_charge: float = 0.2
-var color: Color = Color(1.0, 0.82, 0.4, 1.0)
 
 var _player: Player = null
 var _angle: float = 0.0
 var _fire_left: float = 0.0
 var _age: float = 0.0
 var _aim: Vector2 = Vector2.RIGHT
+var _sheet: Texture2D = null
+
+
+func _ready() -> void:
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_sheet = load(SHEET_PATH) as Texture2D
 
 
 func setup(player: Player) -> void:
@@ -34,7 +44,7 @@ func setup(player: Player) -> void:
 func _physics_process(delta: float) -> void:
 	_age += delta
 	_angle = fmod(_angle + orbit_speed * delta, TAU)
-	position = Vector2.from_angle(_angle) * orbit_radius
+	position = (Vector2.from_angle(_angle) * orbit_radius).round()
 	_fire_left -= delta
 	var target: Node2D = _nearest_enemy()
 	if target != null:
@@ -72,10 +82,9 @@ func _shoot(direction: Vector2) -> bool:
 
 
 func _draw() -> void:
-	var rotor: float = _age * 18.0
-	draw_circle(Vector2.ZERO, BODY_RADIUS, Color(0.06, 0.07, 0.1, 0.95))
-	draw_arc(Vector2.ZERO, BODY_RADIUS, 0.0, TAU, 16, color, 2.0)
-	for side: float in [-1.0, 1.0]:  # duas hélices girando
-		var hub: Vector2 = Vector2(side * (BODY_RADIUS + 3.0), -3.0)
-		draw_line(hub + Vector2.from_angle(rotor) * 4.0, hub - Vector2.from_angle(rotor) * 4.0, color, 1.5)
-	draw_line(Vector2.ZERO, _aim * (BODY_RADIUS + 3.0), color, 2.0)  # cano apontando para o alvo
+	if _sheet == null:
+		return
+	var quadro: int = int(_age * ROTOR_FPS) % FRAME_COUNT
+	var lado: float = float(FRAME_SIZE * PIXEL_SCALE)
+	draw_texture_rect_region(_sheet, Rect2(-lado * 0.5, -lado * 0.5, lado, lado),
+			Rect2(quadro * FRAME_SIZE, 0, FRAME_SIZE, FRAME_SIZE))

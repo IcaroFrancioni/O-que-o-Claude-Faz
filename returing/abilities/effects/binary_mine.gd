@@ -8,12 +8,16 @@ extends PooledArea
 const GROUP_MINES: StringName = &"binary_mine"
 ## Duração (s) da animação da explosão.
 const BOOM_TIME: float = 0.3
-const BODY_RADIUS: float = 9.0
-const PULSE_SPEED: float = 7.0
-const LABEL_SIZE: int = 12
-
-@export var idle_color: Color = Color(0.55, 0.9, 1.0, 1.0)
-@export var armed_color: Color = Color(1.0, 0.45, 0.25, 1.0)
+## Sprites pixelados (gerados por `tests/gerar_sprites.gd`): tira de quadros lado a lado.
+const SHEET_PATH: String = "res://abilities/sprites/binary_mine.png"
+const BOOM_PATH: String = "res://abilities/sprites/mine_explosion.png"
+const FRAME_SIZE: int = 16
+const BOOM_FRAME_SIZE: int = 40
+const BOOM_FRAMES: int = 5
+## Cada pixel do sprite vira 2x2 pixels na tela (mesma escala pixelada do resto do jogo).
+const PIXEL_SCALE: int = 2
+## Segundos de cada quadro do LED piscando (mina armada).
+const BLINK_TIME: float = 0.25
 
 var _damage: int = 0
 var _blast_radius: float = 80.0
@@ -25,12 +29,21 @@ var _age: float = 0.0
 var _exploded: bool = false
 var _source: Node = null
 var _owner_ability: StringName = &""
+var _sheet: Texture2D = null
+var _boom_sheet: Texture2D = null
+
+
+func _ready() -> void:
+	super._ready()
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_sheet = load(SHEET_PATH) as Texture2D
+	_boom_sheet = load(BOOM_PATH) as Texture2D
 
 
 ## Planta a mina em `origin`. `owner_ability` é o id da habilidade (a mina some se o Player a perder).
 func plant(origin: Vector2, damage: int, blast_radius: float, trigger_radius: float, lifetime: float,
 		arm_time: float, source: Node, owner_ability: StringName) -> void:
-	global_position = origin
+	global_position = origin.round()  # posição inteira: o sprite pixelado não tremula
 	_damage = damage
 	_blast_radius = blast_radius
 	_trigger_radius = trigger_radius
@@ -128,20 +141,18 @@ func _explode() -> void:
 
 
 func _draw() -> void:
-	if _exploded:
-		var t: float = clampf(1.0 - _boom_left / BOOM_TIME, 0.0, 1.0)
-		var cor: Color = armed_color
-		cor.a = 1.0 - t
-		draw_arc(Vector2.ZERO, _blast_radius * t, 0.0, TAU, 48, cor, 3.0)
-		var fill: Color = armed_color
-		fill.a = (1.0 - t) * 0.2
-		draw_circle(Vector2.ZERO, _blast_radius * t, fill)
+	if _sheet == null or _boom_sheet == null:
 		return
-	var armed: bool = is_armed()
-	var cor_corpo: Color = armed_color if armed else idle_color
-	var pulso: float = 0.5 + 0.5 * sin(_age * PULSE_SPEED)
-	draw_circle(Vector2.ZERO, BODY_RADIUS, Color(0.05, 0.06, 0.09, 0.9))
-	var borda: Color = cor_corpo
-	borda.a = (0.55 + 0.4 * pulso) if armed else 0.5
-	draw_arc(Vector2.ZERO, BODY_RADIUS, 0.0, TAU, 20, borda, 2.0)
-	draw_string(ThemeDB.fallback_font, Vector2(-7.0, 4.0), "01", HORIZONTAL_ALIGNMENT_LEFT, -1.0, LABEL_SIZE, cor_corpo)
+	if _exploded:
+		var quadro: int = clampi(int((1.0 - _boom_left / BOOM_TIME) * float(BOOM_FRAMES)), 0, BOOM_FRAMES - 1)
+		var lado: float = _blast_radius * 2.0  # o anel termina no raio real da explosão
+		draw_texture_rect_region(_boom_sheet, Rect2(-lado * 0.5, -lado * 0.5, lado, lado),
+				Rect2(quadro * BOOM_FRAME_SIZE, 0, BOOM_FRAME_SIZE, BOOM_FRAME_SIZE))
+		return
+	# Parada: LED ciano apagado. Armada: LED vermelho piscando.
+	var frame: int = 0
+	if is_armed():
+		frame = 1 if int(_age / BLINK_TIME) % 2 == 0 else 2
+	var tamanho: float = float(FRAME_SIZE * PIXEL_SCALE)
+	draw_texture_rect_region(_sheet, Rect2(-tamanho * 0.5, -tamanho * 0.5, tamanho, tamanho),
+			Rect2(frame * FRAME_SIZE, 0, FRAME_SIZE, FRAME_SIZE))

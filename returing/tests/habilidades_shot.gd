@@ -1,7 +1,7 @@
 extends Node
 ## Captura (com janela) dos efeitos das habilidades novas e dos ajustes numa fase real, para conferir o visual.
 ##   godot --path . res://tests/habilidades_shot.tscn -- <acao> <png> [largura altura]
-## acao: emp | halo | escudo | drone | mina | leque | gelido | enigma | overclock | comando | levelup
+## acao: emp | halo | rastro | escudo | drone | mina | mina_boom | leque | gelido | enigma | overclock | comando | levelup
 ## As ações de efeito recortam e ampliam (x2) a região em volta do jogador; `comando` e `levelup` capturam a tela cheia.
 
 const FASE: String = "res://Scenes/Fase2/Fase2.tscn"
@@ -72,6 +72,18 @@ func _efeito(acao: String) -> void:
 		"halo":
 			_hab._activate(_dados(&"rastro_de_fogo"))
 			await _frames(25)
+		"rastro":  # o golpe que consome o halo e acende as chamas no chão
+			_hab._activate(_dados(&"rastro_de_fogo"))
+			await _frames(5)
+			_player.atacar_com_arma()
+			await _frames(30)
+		"mina_boom":  # mina no meio da explosão
+			_hab.learn(_dados(&"mina_binaria"))
+			_hab._activate(_dados(&"mina_binaria"))
+			await _frames(70)
+			for no: Node in get_tree().get_nodes_in_group(BinaryMine.GROUP_MINES):
+				(no as BinaryMine)._explode()
+			await _frames(7)
 		"escudo":
 			_hab._activate(_dados(&"escudo"))
 			await _frames(20)

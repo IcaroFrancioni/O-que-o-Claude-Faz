@@ -18,8 +18,9 @@ const RING_GAP: float = 4.0
 const SWEEP_POINTS: int = 48
 const PULSE_TIME: float = 0.55
 const PULSE_GROWTH: float = 0.45
-const FONT_SIZE: int = 15
-const OUTLINE_SIZE: int = 4
+## Tamanho do número do cooldown: 1,5 x Palette.FONT_BASE (16): o 2x (32) cobria o ícone do amuleto.
+const FONT_SIZE: int = Palette.FONT_BASE + Palette.FONT_BASE / 2
+const OUTLINE_SIZE: int = 3
 ## Abaixo disto (s) o tempo mostra uma casa decimal.
 const DECIMAL_BELOW: float = 10.0
 
@@ -57,6 +58,9 @@ func _ready() -> void:
 	_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	var pixel_font: Font = Palette.load_theme().default_font  # VT323 (a mesma dos menus); o tema da HUD não tem fonte
+	if pixel_font != null:
+		_label.add_theme_font_override(&"font", pixel_font)
 	_label.add_theme_font_size_override(&"font_size", FONT_SIZE)
 	_label.add_theme_color_override(&"font_color", UiPalette.TEXT)
 	_label.add_theme_color_override(&"font_outline_color", UiPalette.OUTLINE)

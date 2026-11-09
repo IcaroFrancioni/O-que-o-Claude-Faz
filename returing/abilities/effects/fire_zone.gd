@@ -2,15 +2,22 @@ class_name FireZone
 extends PooledArea
 ## Chão em chamas deixado pelo Rastro de Fogo: causa dano por tick em quem estiver dentro e some.
 
-@export var flame_color: Color = Color(1.0, 0.45, 0.1, 0.6)
-@export var core_color: Color = Color(1.0, 0.85, 0.3, 0.8)
-
+## Sprites pixelados (gerados por `tests/gerar_sprites.gd`): tira de chamas e chão chamuscado.
+const FLAME_PATH: String = "res://abilities/sprites/fire_flame.png"
+const GROUND_PATH: String = "res://abilities/sprites/fire_ground.png"
+const FLAME_W: int = 16
+const FLAME_H: int = 24
+const FLAME_FRAMES: int = 6
+## Quadros por segundo da chama.
+const FLAME_FPS: float = 10.0
+## Cada pixel do sprite vira 2x2 pixels na tela.
+const PIXEL_SCALE: int = 2
 ## Quantos pontos de chama são desenhados dentro da área.
 const FLAME_COUNT: int = 6
 ## Tempo final (s) em que a chama esmaece.
 const FADE_TIME: float = 0.6
 ## Intervalo (s) entre redesenhos da chama.
-const REDRAW_INTERVAL: float = 0.08
+const REDRAW_INTERVAL: float = 0.05
 
 var _damage: int = 0
 var _tick_interval: float = 0.5
@@ -22,19 +29,24 @@ var _redraw_left: float = 0.0
 ## Tempo de vida acumulado (anima a chama junto com o tempo do jogo, que congela na pausa).
 var _age: float = 0.0
 var _overlapping: Array[Area2D] = []
+var _flame_sheet: Texture2D = null
+var _ground: Texture2D = null
 
 @onready var _shape: CollisionShape2D = $CollisionShape2D
 
 
 func _ready() -> void:
 	super._ready()
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_flame_sheet = load(FLAME_PATH) as Texture2D
+	_ground = load(GROUND_PATH) as Texture2D
 	area_entered.connect(_on_area_entered)
 	area_exited.connect(_on_area_exited)
 
 
 ## Acende a chama em `origin`.
 func ignite(origin: Vector2, radius: float, damage: int, tick_interval: float, lifetime: float, source: Node) -> void:
-	global_position = origin
+	global_position = origin.round()  # posição inteira: o sprite pixelado não tremula
 	_radius = radius
 	_damage = damage
 	_tick_interval = maxf(tick_interval, 0.05)
@@ -89,28 +101,26 @@ func _on_area_exited(area: Area2D) -> void:
 
 
 func _draw() -> void:
+	if _flame_sheet == null or _ground == null:
+		return
 	var fade: float = clampf(_life_left / FADE_TIME, 0.0, 1.0)
-	var t: float = _age
-	var base: Color = flame_color
-	base.a *= 0.35 * fade
-	draw_circle(Vector2.ZERO, _radius, base)
+	var tom: Color = Color(1.0, 1.0, 1.0, fade)
+	draw_texture_rect(_ground, Rect2(-_radius, -_radius, _radius * 2.0, _radius * 2.0), false, tom)
+	# Chamas de trás para frente (as mais baixas na tela por último), todas com posição inteira.
+	var bases: Array[Vector2] = []
 	for i: int in FLAME_COUNT:
 		var ang: float = TAU * float(i) / float(FLAME_COUNT) + float(i) * 0.7
 		var dist: float = _radius * (0.25 + 0.45 * fmod(float(i) * 0.37, 1.0))
-		var centro: Vector2 = Vector2.from_angle(ang) * dist
-		var altura: float = _radius * (0.45 + 0.25 * sin(t * 9.0 + float(i) * 1.7))
-		var largura: float = _radius * 0.2
-		var cor: Color = flame_color
-		cor.a *= fade
-		draw_colored_polygon(PackedVector2Array([
-			centro + Vector2(-largura, 0.0),
-			centro + Vector2(0.0, -altura),
-			centro + Vector2(largura, 0.0),
-		]), cor)
-		var miolo: Color = core_color
-		miolo.a *= fade
-		draw_colored_polygon(PackedVector2Array([
-			centro + Vector2(-largura * 0.5, 0.0),
-			centro + Vector2(0.0, -altura * 0.55),
-			centro + Vector2(largura * 0.5, 0.0),
-		]), miolo)
+		bases.append((Vector2.from_angle(ang) * dist).round())
+	var ordem: Array[int] = []
+	for i: int in FLAME_COUNT:
+		ordem.append(i)
+	ordem.sort_custom(func(a: int, b: int) -> bool: return bases[a].y < bases[b].y)
+	var largura: float = float(FLAME_W * PIXEL_SCALE)
+	var altura: float = float(FLAME_H * PIXEL_SCALE)
+	for i: int in ordem:
+		var quadro: int = (int(_age * FLAME_FPS) + i) % FLAME_FRAMES
+		# a base da chama fica no ponto sorteado; ela encolhe um pouco no fim da vida
+		var h: float = altura * lerpf(0.6, 1.0, fade)
+		draw_texture_rect_region(_flame_sheet, Rect2(bases[i].x - largura * 0.5, bases[i].y - h, largura, h),
+				Rect2(quadro * FLAME_W, 0, FLAME_W, FLAME_H), tom)

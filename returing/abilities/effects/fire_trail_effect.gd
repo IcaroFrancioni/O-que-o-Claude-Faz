@@ -23,17 +23,30 @@ const DEFAULT_WAIT: float = 8.0
 @export var tick_damage: int = 6
 @export var tick_interval: float = 0.5
 
+## Chama pixelada do halo (gerada por `tests/gerar_sprites.gd`): tira de quadros lado a lado.
+const HALO_PATH: String = "res://abilities/sprites/fire_halo.png"
+const HALO_W: int = 8
+const HALO_H: int = 12
+const HALO_FRAMES: int = 4
+const HALO_FPS: float = 12.0
+const EMBER_COLORS: Array[Color] = [Color("#ff6a00"), Color("#d81414"), Color("#ffc414")]
+
 @export_group("Halo na espada")
-@export var halo_color: Color = Color(1.0, 0.5, 0.12, 1.0)
-@export var halo_core_color: Color = Color(1.0, 0.85, 0.35, 1.0)
-## Raio (px) do halo e distância (px) à frente da espada, na direção da mira.
-@export var halo_radius: float = 13.0
+## Cada pixel do sprite vira NxN pixels na tela.
+@export_range(1, 6) var halo_pixel_scale: int = 3
+## Distância (px) à frente da espada, na direção da mira.
 @export var halo_distance: float = 16.0
 
 var _time_left: float = DEFAULT_WAIT
 var _zones: Array[FireZone] = []
 var _consumed: bool = false
 var _age: float = 0.0
+var _halo: Texture2D = null
+
+
+func _ready() -> void:
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_halo = load(HALO_PATH) as Texture2D
 
 
 func _on_activate() -> void:
@@ -87,25 +100,19 @@ func _on_cleanup() -> void:
 		CombatUtils.disconnect_if_connected(caster.weapon.attack_started, _on_attack_started)
 
 
-## Halo de fogo na ponta da espada: brilho pulsando e três chamas que balançam.
+## Halo de fogo na ponta da espada: chama pixelada animada e brasas subindo (tudo em pixels inteiros).
 func _draw() -> void:
-	if not is_halo_visible() or not is_instance_valid(caster) or caster.weapon == null:
+	if _halo == null or not is_halo_visible() or not is_instance_valid(caster) or caster.weapon == null:
 		return
-	var centro: Vector2 = caster.weapon.position + caster.aim_direction * halo_distance
-	var pulso: float = 0.5 + 0.5 * sin(_age * 10.0)
-	var brilho: Color = halo_color
-	brilho.a = 0.2 + 0.15 * pulso
-	draw_circle(centro, halo_radius, brilho)
-	var anel: Color = halo_color
-	anel.a = 0.55 + 0.35 * pulso
-	draw_arc(centro, halo_radius, 0.0, TAU, 24, anel, 1.5)
-	for i: int in 3:
-		var base: Vector2 = centro + Vector2((float(i) - 1.0) * 5.0, 4.0)
-		var altura: float = halo_radius * (0.8 + 0.35 * sin(_age * 12.0 + float(i) * 2.1))
-		var largura: float = 3.0
-		draw_colored_polygon(PackedVector2Array([
-			base + Vector2(-largura, 0.0), base + Vector2(0.0, -altura), base + Vector2(largura, 0.0),
-		]), halo_color)
-		draw_colored_polygon(PackedVector2Array([
-			base + Vector2(-largura * 0.5, 0.0), base + Vector2(0.0, -altura * 0.55), base + Vector2(largura * 0.5, 0.0),
-		]), halo_core_color)
+	var centro: Vector2 = (caster.weapon.position + caster.aim_direction * halo_distance).round()
+	var largura: float = float(HALO_W * halo_pixel_scale)
+	var altura: float = float(HALO_H * halo_pixel_scale)
+	var quadro: int = int(_age * HALO_FPS) % HALO_FRAMES
+	draw_texture_rect_region(_halo, Rect2(centro.x - largura * 0.5, centro.y - altura * 0.5, largura, altura),
+			Rect2(quadro * HALO_W, 0, HALO_W, HALO_H))
+	for i: int in 3:  # brasas: quadradinhos de 2 px que sobem e somem
+		var subida: float = fmod(_age * 14.0 + float(i) * 7.0, 16.0)
+		var brasa: Vector2 = (centro + Vector2(float(i - 1) * 6.0, -altura * 0.5 - subida)).round()
+		var cor: Color = EMBER_COLORS[i % EMBER_COLORS.size()]
+		cor.a = 1.0 - subida / 16.0
+		draw_rect(Rect2(brasa, Vector2(2.0, 2.0)), cor)
