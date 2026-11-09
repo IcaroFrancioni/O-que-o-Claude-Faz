@@ -25,8 +25,6 @@ const END_SOUND_VOLUME: float = 0.45
 ## True depois que o escudo acabou sozinho (o som e o estalo só acontecem aqui).
 var ended_naturally: bool = false
 
-static var _end_stream: AudioStreamWAV = null
-
 var _time_left: float = DEFAULT_TIME
 var _age: float = 0.0
 var _burst_left: float = 0.0
@@ -58,7 +56,7 @@ func _end_naturally() -> void:
 	_burst_left = BURST_TIME
 	var player: AudioStreamPlayer = AudioStreamPlayer.new()
 	player.name = &"EndSound"
-	player.stream = _get_end_stream()
+	player.stream = _make_end_stream()
 	player.bus = &"SFX"
 	add_child(player)
 	player.play()
@@ -92,10 +90,8 @@ func _draw() -> void:
 	draw_arc(Vector2.ZERO, radius - 4.0, 0.0, TAU, 48, interna, 1.0)
 
 
-## Tom descendente de 16 bits (criado uma vez e reaproveitado).
-static func _get_end_stream() -> AudioStreamWAV:
-	if _end_stream != null:
-		return _end_stream
+## Tom descendente de 16 bits (só ~4 mil amostras: gerado a cada uso, sem guardar em variável estática).
+static func _make_end_stream() -> AudioStreamWAV:
 	var count: int = int(float(END_SOUND_RATE) * END_SOUND_TIME)
 	var bytes: PackedByteArray = PackedByteArray()
 	bytes.resize(count * 2)
@@ -110,5 +106,4 @@ static func _get_end_stream() -> AudioStreamWAV:
 	stream.mix_rate = END_SOUND_RATE
 	stream.stereo = false
 	stream.data = bytes
-	_end_stream = stream
 	return stream
