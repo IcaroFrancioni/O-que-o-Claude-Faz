@@ -1,8 +1,8 @@
 extends Node
 ## Captura (com janela) dos efeitos das habilidades novas e dos ajustes numa fase real, para conferir o visual.
 ##   godot --path . res://tests/habilidades_shot.tscn -- <acao> <png> [largura altura]
-## acao: emp | halo | escudo | drone | mina | leque | gelido | enigma | overclock | levelup
-## As ações de efeito recortam e ampliam (x2) a região em volta do jogador; `levelup` captura a tela cheia.
+## acao: emp | halo | escudo | drone | mina | leque | gelido | enigma | overclock | comando | levelup
+## As ações de efeito recortam e ampliam (x2) a região em volta do jogador; `comando` e `levelup` capturam a tela cheia.
 
 const FASE: String = "res://Scenes/Fase2/Fase2.tscn"
 const RECORTE: Vector2i = Vector2i(400, 300)
@@ -41,7 +41,7 @@ func _run() -> void:
 		await _efeito(acao)
 	await RenderingServer.frame_post_draw
 	var imagem: Image = get_tree().root.get_texture().get_image()
-	if acao != "levelup":
+	if acao != "levelup" and acao != "comando":
 		var centro: Vector2 = get_viewport().get_canvas_transform() * _player.global_position
 		var origem: Vector2i = Vector2i(int(centro.x) - RECORTE.x / 2, int(centro.y) - RECORTE.y / 2)
 		origem = origem.clamp(Vector2i.ZERO, Vector2i(imagem.get_width() - RECORTE.x, imagem.get_height() - RECORTE.y))
@@ -94,6 +94,14 @@ func _efeito(acao: String) -> void:
 		"overclock":
 			_hab._activate(_dados(&"overclock"))
 			await _frames(25)
+		"comando":  # painel do modo comando e faixa de slots com 3 habilidades novas
+			for id: StringName in [&"reflexos", &"mina_binaria", &"overclock"]:
+				_hab.learn(_dados(id))
+			await _frames(5)
+			_hab._activate(_dados(&"reflexos"))
+			await _frames(20)
+			_hab._open_command_mode()
+			await _frames(10)
 
 
 ## Menu de escolha real, com o botão de reroll (3 lendárias: o pior caso de altura).
