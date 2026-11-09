@@ -207,7 +207,7 @@ func _exit_tree() -> void:
 
 func _emitir_estado_para_ui() -> void:
 	hp_changed.emit(hp, hp_maximo)
-	carga_mudou.emit(0.0 if state != State.ATTACK_RANGED else _carga / maxf(charge_time, 0.01))
+	carga_mudou.emit(0.0 if state != State.ATTACK_RANGED else _carga / _tempo_de_carga())
 
 
 func _physics_process(delta: float) -> void:
@@ -276,7 +276,7 @@ func _state_attack_ranged(delta: float) -> void:
 	_apontar_para_mouse()  # durante a carga o personagem encara o cursor, não o movimento
 	velocity = _input_dir * speed * charge_move_multiplier * _stat_mult(StatModifiers.MOVE_SPEED)
 
-	var tempo_total: float = maxf(charge_time, 0.01)
+	var tempo_total: float = _tempo_de_carga()
 	if _carga < tempo_total:
 		_carga = minf(_carga + delta, tempo_total)
 		carga_mudou.emit(_carga / tempo_total)
@@ -377,7 +377,7 @@ func _exit_state(s: State) -> void:
 	match s:
 		State.DASH:
 			_dash_left = 0.0
-			_dash_cooldown_left = dash_cooldown
+			_dash_cooldown_left = dash_cooldown * _stat_mult(StatModifiers.DASH_COOLDOWN)
 		State.ATTACK_MELEE:
 			_melee_safety_left = 0.0
 			if weapon != null and weapon.is_attacking():
@@ -515,7 +515,7 @@ func _disparar_projetil() -> void:
 		push_warning("Player: projectile_scene precisa ter player_projectile.gd na raiz (ou o pool de tiros esgotou).")
 		return
 	# Um toque rápido (celular) ainda dá um tiro de tamanho decente.
-	var ratio: float = clampf(maxf(_carga / maxf(charge_time, 0.01), Platform.min_shot_charge), 0.0, 1.0)
+	var ratio: float = clampf(maxf(_carga / _tempo_de_carga(), Platform.min_shot_charge), 0.0, 1.0)
 	# Mira a partir do ponto de nascimento (não do centro do jogador): o tiro
 	# sai exatamente na linha que liga a boca do disparo ao cursor.
 	# A carga define o dano e o tamanho do tiro.
@@ -526,6 +526,11 @@ func _disparar_projetil() -> void:
 	projetil.speed = float(projetil.get_meta(&"speed_base")) * _stat_mult(StatModifiers.PROJECTILE_SPEED)
 	CombatUtils.connect_once(projetil.damage_dealt, _on_projectile_damage_dealt)
 	$AttackSound.play()
+
+
+## Tempo (s) para a carga máxima, já com o bônus de habilidades (Carga Rápida).
+func _tempo_de_carga() -> float:
+	return maxf(charge_time * _stat_mult(StatModifiers.CHARGE_TIME), 0.01)
 
 
 ## Dano do tiro para uma carga de 0.0 a 1.0.
@@ -587,6 +592,7 @@ func tomar_dano(quantidade: int, ignorar_iframes: bool = false) -> bool:
 		return false
 	if esta_invulneravel() and not ignorar_iframes:
 		return false
+	quantidade = maxi(roundi(float(quantidade) * _stat_mult(StatModifiers.DAMAGE_TAKEN)), 1)
 	var aplicado: int = mini(quantidade, hp)
 	hp -= aplicado
 	_tempo_sem_dano = 0.0  # Regeneração: dano reinicia a contagem dos 10 s.
@@ -685,7 +691,7 @@ func get_muzzle_position() -> Vector2:
 func get_charge_ratio() -> float:
 	if state != State.ATTACK_RANGED:
 		return 0.0
-	return clampf(_carga / maxf(charge_time, 0.01), 0.0, 1.0)
+	return clampf(_carga / _tempo_de_carga(), 0.0, 1.0)
 
 
 ## True enquanto a barra de mira deve aparecer (carregando o tiro).
