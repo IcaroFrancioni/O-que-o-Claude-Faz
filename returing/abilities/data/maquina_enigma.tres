@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="AbilityData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://abilities/core/ability_data.gd" id="1_data"]
+[ext_resource type="PackedScene" path="res://abilities/effects/EnigmaMachineEffect.tscn" id="2_fx"]
+
+[resource]
+script = ExtResource("1_data")
+id = &"maquina_enigma"
+display_name = "Máquina Enigma"
+description = "Inimigos comuns ficam 70% mais lentos por 8 s (chefões, 30%)."
+sequence = Array[int]([2, 0, 2, 0, 1, 1])
+cooldown = 60.0
+duration = 8.0
+rarity = 2
+glyph = 0
+effect_scene = ExtResource("2_fx")
+stat_mult = {}
+stat_add = {}
