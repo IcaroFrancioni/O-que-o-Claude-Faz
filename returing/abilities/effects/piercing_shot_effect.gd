@@ -41,6 +41,8 @@ func _try_fire() -> void:
 			_finish()
 		return
 	var dano: int = damage_override if damage_override > 0 else caster.max_damage
-	shot.launch(caster.get_muzzle_position(), caster.get_shot_direction(), dano, 1.0, caster, Platform.aim_assist)
+	# Sem mira assistida (último parâmetro): o tiro segue a linha bruta do cursor/toque, sem curvar para
+	# o inimigo. Vale só para este tiro; o tiro carregado normal continua usando `Platform.aim_assist`.
+	shot.launch(caster.get_muzzle_position(), caster.get_shot_direction(), dano, 1.0, caster, false)
 	CombatUtils.connect_once(shot.damage_dealt, Callable(caster, &"_on_projectile_damage_dealt"))
 	_finish()
