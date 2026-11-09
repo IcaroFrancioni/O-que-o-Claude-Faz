@@ -21,6 +21,9 @@ O Pulso EMP também atordoa (1,5 s) os inimigos, sem editar nenhum inimigo; chef
   (`ui_cancel`) ou o botão "Fechar". Não abre durante quiz, pause, escolha de habilidade ou com o Alan morto.
 - Matar inimigos dá XP (20 a 30 cada). Níveis: 100 / 250 / 400 de XP acumulado (nível máximo 3).
 - Cada nível abre um menu com 3 cartas sorteadas. As não escolhidas nunca mais aparecem na run.
+- O menu tem **1 reroll por run** (botão "Rerrolar"): sorteia as 3 cartas de novo, sem repetir as que acabaram de
+  aparecer (se houver outras no catálogo). Cancelar a confirmação de uma lendária não gasta o reroll.
+- Com o modo comando aberto e o Pulso EMP pronto, a 1ª seta que combina com ele mostra um círculo com o alcance real.
 - As lendárias só podem aparecer no nível 3 e apagam todas as outras habilidades (o menu avisa e pede confirmação).
 - Com qualquer menu aberto (pause, escolha, build) o tempo das habilidades (recargas, buffs, Escudo, efeitos
   e pulsos da HUD) fica congelado, porque todos pausam a árvore e as animações da HUD são pausáveis.
@@ -35,7 +38,7 @@ O Pulso EMP também atordoa (1,5 s) os inimigos, sem editar nenhum inimigo; chef
 | Pasta | Conteúdo |
 |---|---|
 | `core/` | `AbilityData`, `AbilityCatalog`, `StatModifiers`, `AbilityEffect`, `StatBuffEffect`, `AbilityComponent`, `ExperienceComponent`, `RunState`, `UiTween` |
-| `data/` | um `.tres` por habilidade + `ability_catalog.tres` (as 12) |
+| `data/` | um `.tres` por habilidade + `ability_catalog.tres` (as 21) |
 | `effects/` | cenas e scripts dos efeitos |
 | `ui/` | `ArrowSequenceView`, `AmuletIcon`, `CooldownSlot` (clicável), HUD de habilidades, menu de level-up, menu de build (`build_menu`) e a barra de XP em `res://ui/hud/xp_bar.tscn` |
 
@@ -44,7 +47,12 @@ O Pulso EMP também atordoa (1,5 s) os inimigos, sem editar nenhum inimigo; chef
 2. Defina a `sequence` (3 a 6 setas; `0` cima, `1` baixo, `2` esquerda, `3` direita), `cooldown`, `duration`,
    `rarity`, `glyph` e a `effect_scene`. Para um buff simples use `effects/StatBuffEffect.tscn` e preencha
    `stat_mult` / `stat_add` (atributos: `move_speed`, `dash_distance`, `projectile_speed`, `sword_area`,
-   `life_steal`, `max_health`, `heal_received`, `damage`). Para algo novo, crie uma cena cuja raiz herde de `AbilityEffect`.
+   `life_steal`, `max_health`, `heal_received`, `damage`, `dash_cooldown`, `charge_time`, `damage_taken`; os três
+   últimos são multiplicadores: 0.6 = 40% menos). Para algo novo, crie uma cena cuja raiz herde de `AbilityEffect`.
+   `penalty_duration` > 0 marca os últimos segundos da `duration` como fase de penalidade (Overclock); o slot da HUD
+   pinta o anel de duração com outra cor nessa fase. Lentidão em inimigos: use `EnemySlow` (devolve a `move_speed`
+   original exata). O ícone do amuleto é o `icon` do `.tres`; os das 9 habilidades novas são gerados por
+   `tests/gerar_icones.gd`.
 3. Adicione o `.tres` na lista `abilities` de `data/ability_catalog.tres`. O validador avisa (`push_warning`)
    se a sequência repetir ou for prefixo completo de outra.
 
