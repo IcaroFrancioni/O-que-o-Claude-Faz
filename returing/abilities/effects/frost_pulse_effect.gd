@@ -21,7 +21,8 @@ const DEFAULT_TIME: float = 4.0
 
 var _time_left: float = DEFAULT_TIME
 var _age: float = 0.0
-var _slowed: Array[EnemyBase] = []
+## Inimigos que esta fonte deixou lentos (pode conter instâncias já liberadas: sempre checar).
+var _slowed: Array = []
 
 
 func _on_activate() -> void:
@@ -49,8 +50,9 @@ func _physics_process(delta: float) -> void:
 
 ## Fim do tempo, morte do Player, lendária apagando as outras ou saída da cena: devolve a velocidade.
 func _on_cleanup() -> void:
-	for foe: EnemyBase in _slowed:
-		EnemySlow.remove(foe, self)
+	for foe: Variant in _slowed:
+		if is_instance_valid(foe):
+			EnemySlow.remove(foe as EnemyBase, self)
 	_slowed.clear()
 
 
