@@ -86,6 +86,7 @@ func _end_of_life() -> void:
 	recycle()  # Volta ao pool.
 
 
+## Diz se o tiro pode se dividir: precisa de uma receita de filho e de não ter passado do limite de gerações.
 func _can_split() -> bool:
 	# Só divide com receita de filho e abaixo do teto de gerações.
 	return _spec != null and _spec.child != null and _generation < MAX_SPLIT_GENERATIONS

@@ -17,6 +17,7 @@ extends Control
 var _settings: SettingsPanel = null  # Painel de configurações de áudio.
 
 
+## Tinge as imagens com a paleta, cria a página de configurações, dá foco ao primeiro botão e faz o fade de entrada.
 func _ready() -> void:
 	# As imagens são brancas: tinge com a paleta (nada de branco puro na tela).
 	_stars.modulate = Palette.TEXT_DIM  # Estrelas esmaecidas.

@@ -168,6 +168,11 @@ Sugestões:
 
 ## 8. Sobre os comentários
 
-Todos os `.gd` foram comentados no estilo pedido: `##` acima de cada função explicando **o que ela faz** e **quando recusa/falha**,
-e `#` (acima ou no fim da linha) explicando as linhas. O código **não foi alterado**: um verificador compara, arquivo por arquivo,
-o código sem comentários antes e depois.
+Os **159 scripts `.gd`** do projeto (fora de `addons/`, que é de terceiros) foram recomentados no estilo pedido:
+
+- `##` **acima de cada função** explicando o que ela faz e quando recusa ou falha (1.303 funções; todas têm comentário acima);
+- `#` **acima ou no fim das linhas** explicando o que cada passo faz (linhas longas recebem o comentário acima, para não passarem de ~105 colunas).
+
+O código **não foi alterado**: um verificador (comentários removidos, strings preservadas) compara, arquivo por arquivo, o código
+antes e depois, e os 159 arquivos deram **0 diferenças**. Como o Godot não estava instalado na máquina onde isso foi feito,
+**abra o projeto no editor uma vez** (ou rode `godot --headless --path . res://qa/audit_load.tscn`) para conferir que tudo carrega.

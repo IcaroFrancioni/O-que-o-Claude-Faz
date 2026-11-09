@@ -3,24 +3,27 @@ extends Node
 ## erros, recarga, Ctrl repetido, eco de tecla, pausa, menus, dash/golpe, morte, saída de cena e celular.
 ## Rodar: godot --headless --path . res://qa/ctrl_stress_test.tscn
 
-const TECLAS_SETA: Array[Key] = [KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT]
-const ESCALA_ESPERADA: float = 0.2
+const TECLAS_SETA: Array[Key] = [KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT]  # Tecla de cada direção de seta.
+const ESCALA_ESPERADA: float = 0.2  # Escala de tempo esperada com o modo aberto.
 
-var _falhas: int = 0
-var _total: int = 0
-var _fase: Node = null
-var _player: Player = null
-var _hab: AbilityComponent = null
-var _ui: AbilitiesUI = null
-var _ativadas: Array[StringName] = []
+var _falhas: int = 0  # Verificações que falharam.
+var _total: int = 0  # Total de verificações.
+var _fase: Node = null  # Fase aberta.
+var _player: Player = null  # Jogador.
+var _hab: AbilityComponent = null  # Componente de habilidades.
+var _ui: AbilitiesUI = null  # Interface das habilidades.
+var _ativadas: Array[StringName] = []  # Habilidades ativadas.
+# Contador de erros de digitação (em lista para a função anônima poder alterar).
 var _erros: Array[int] = [0]
-var _estados: Array[int] = []
+var _estados: Array[int] = []  # Estados do jogador observados.
 
 
+## Agenda o teste para o fim do quadro.
 func _ready() -> void:
 	_rodar.call_deferred()
 
 
+## Confere uma condição, mostra o resultado e conta a falha.
 func _confere(condicao: bool, nome: String) -> void:
 	_total += 1
 	if not condicao:
@@ -30,6 +33,7 @@ func _confere(condicao: bool, nome: String) -> void:
 		print("  ok    " + nome)
 
 
+## Espera `n` quadros.
 func _frames(n: int) -> void:
 	for i: int in n:
 		await get_tree().process_frame
@@ -40,6 +44,7 @@ func _segundos(s: float) -> void:
 	await get_tree().create_timer(s, true, false, true).timeout
 
 
+## Simula apertar ou soltar uma tecla (com Ctrl, lado do teclado e eco opcionais).
 func _tecla(keycode: Key, apertada: bool, ctrl: bool = false, lado: KeyLocation = KEY_LOCATION_UNSPECIFIED,
 		eco: bool = false) -> void:
 	var ev := InputEventKey.new()
@@ -52,6 +57,7 @@ func _tecla(keycode: Key, apertada: bool, ctrl: bool = false, lado: KeyLocation 
 	Input.parse_input_event(ev)
 
 
+## Aperta e solta uma tecla com dois quadros de espera em cada passo.
 func _toque(keycode: Key, lado: KeyLocation = KEY_LOCATION_UNSPECIFIED, ctrl: bool = false) -> void:
 	_tecla(keycode, true, ctrl, lado)
 	await _frames(2)
@@ -59,22 +65,26 @@ func _toque(keycode: Key, lado: KeyLocation = KEY_LOCATION_UNSPECIFIED, ctrl: bo
 	await _frames(2)
 
 
+## Toca no Ctrl (apertar e soltar).
 func _ctrl_toque(lado: KeyLocation = KEY_LOCATION_LEFT) -> void:
 	await _toque(KEY_CTRL, lado, true)
 
 
+## Digita cada tecla da lista em sequência.
 func _digitar(teclas: Array[Key]) -> void:
 	for tecla: Key in teclas:
 		await _toque(tecla)
 
 
+## Converte uma sequência de direções em teclas de seta.
 func _sequencia_para_teclas(seq: Array[int]) -> Array[Key]:
-	var teclas: Array[Key] = []
-	for dir: int in seq:
-		teclas.append(TECLAS_SETA[dir])
+	var teclas: Array[Key] = []  # Lista de teclas.
+	for dir: int in seq:  # Cada direção.
+		teclas.append(TECLAS_SETA[dir])  # Tecla correspondente.
 	return teclas
 
 
+## Simula apertar ou soltar uma ação do Input Map.
 func _acao(nome: StringName, apertada: bool) -> void:
 	var ev := InputEventAction.new()
 	ev.action = nome
@@ -82,6 +92,7 @@ func _acao(nome: StringName, apertada: bool) -> void:
 	Input.parse_input_event(ev)
 
 
+## Zera recargas, efeitos, ativações e erros entre um teste e outro.
 func _limpar() -> void:
 	_hab._cooldowns.clear()
 	_hab._cancel_all_effects()
@@ -89,62 +100,70 @@ func _limpar() -> void:
 	_erros[0] = 0
 
 
+## Diz se o modo comando está fechado e o tempo voltou ao normal.
 func _fechado() -> bool:
 	return not _hab.command_active and is_equal_approx(Engine.time_scale, 1.0)
 
 
+## Diz se o modo comando está aberto e a câmera lenta está ligada.
 func _aberto() -> bool:
 	return _hab.command_active and is_equal_approx(Engine.time_scale, ESCALA_ESPERADA)
 
 
 ## Espera o Alan voltar a IDLE/MOVE (a câmera lenta estica o dash e o golpe em tempo real).
+## Espera o jogador voltar a ficar parado ou andando (a câmera lenta estica o dash e o golpe em tempo real).
 func _esperar_livre() -> void:
-	var inicio: int = Time.get_ticks_msec()
-	while Time.get_ticks_msec() - inicio < 8000:
-		if _player.state == Player.State.IDLE or _player.state == Player.State.MOVE:
+	var inicio: int = Time.get_ticks_msec()  # Hora de início.
+	while Time.get_ticks_msec() - inicio < 8000:  # Espera até 8 s.
+		if _player.state == Player.State.IDLE or _player.state == Player.State.MOVE:  # Voltou ao normal.
 			break
-		await _frames(2)
-	await _segundos(0.1)
+		await _frames(2)  # Espera um quadro.
+	await _segundos(0.1)  # Pequena folga.
 
 
+## Fecha o modo comando se ele estiver aberto.
 func _fechar_se_aberto() -> void:
-	if _hab.command_active:
-		await _ctrl_toque()
-	await _frames(2)
+	if _hab.command_active:  # Está aberto.
+		await _ctrl_toque()  # Toca no Ctrl.
+	await _frames(2)  # Espera.
 
 
+## Abre a Fase 1 e liga o teste ao jogador, à interface e aos sinais de habilidade e estado.
 func _abrir_fase() -> void:
-	RunState.reset()
-	_fase = (load("res://Scenes/Fase1/fase_1.tscn") as PackedScene).instantiate()
-	get_tree().root.add_child(_fase)
-	get_tree().current_scene = _fase
-	await _frames(20)
-	_player = _fase.find_child("Player", true, false) as Player
-	_hab = _player.get_node("AbilityComponent") as AbilityComponent
-	_ui = _player.find_child("AbilitiesUI", true, false) as AbilitiesUI
-	_player.conceder_invulnerabilidade(99999.0)
+	RunState.reset()  # Run nova.
+	_fase = (load("res://Scenes/Fase1/fase_1.tscn") as PackedScene).instantiate()  # Cria a fase.
+	get_tree().root.add_child(_fase)  # Entra na árvore.
+	get_tree().current_scene = _fase  # É a cena atual.
+	await _frames(20)  # Espera 20 quadros.
+	_player = _fase.find_child("Player", true, false) as Player  # Jogador.
+	_hab = _player.get_node("AbilityComponent") as AbilityComponent  # Componente de habilidades.
+	_ui = _player.find_child("AbilitiesUI", true, false) as AbilitiesUI  # Interface das habilidades.
+	_player.conceder_invulnerabilidade(99999.0)  # Jogador invulnerável.
+	# Guarda cada ativação.
 	_hab.ability_activated.connect(func(d: AbilityData) -> void: _ativadas.append(d.id))
-	_hab.input_failed.connect(func() -> void: _erros[0] += 1)
+	_hab.input_failed.connect(func() -> void: _erros[0] += 1)  # Conta cada erro.
+	# Guarda cada mudança de estado do jogador.
 	_player.estado_mudou.connect(func(e: int) -> void: _estados.append(e))
 
 
+## Roda o estresse: todas as habilidades, erros, recarga, cancelar, fora do modo, digitação rápida, dash e golpe, pausa e menus, toque, HUD, morte e saída de cena.
 func _rodar() -> void:
-	await _abrir_fase()
-	var todas: Array[AbilityData] = _hab.catalog.abilities.duplicate()
-	print("== Input Map ==")
-	_testar_input_map()
+	await _abrir_fase()  # Abre a fase.
+	var todas: Array[AbilityData] = _hab.catalog.abilities.duplicate()  # Todas as habilidades do catálogo.
+	print("== Input Map ==")  # Seção.
+	_testar_input_map()  # Confere o Input Map.
 
 	print("== Todas as habilidades (%d) ==" % todas.size())
-	_hab.abilities = todas
-	_hab.abilities_changed.emit()
+	_hab.abilities = todas  # Dá todas as habilidades ao jogador.
+	_hab.abilities_changed.emit()  # Avisa a interface.
 	await _frames(3)
-	for data: AbilityData in todas:
-		_limpar()
-		await _ctrl_toque()
-		var abriu: bool = _aberto()
-		await _digitar(_sequencia_para_teclas(data.sequence))
-		var antes_enter: bool = _ativadas.is_empty()
-		await _toque(KEY_ENTER)
+	for data: AbilityData in todas:  # Cada habilidade.
+		_limpar()  # Limpa.
+		await _ctrl_toque()  # Abre o modo.
+		var abriu: bool = _aberto()  # Abriu?
+		await _digitar(_sequencia_para_teclas(data.sequence))  # Digita a sequência.
+		var antes_enter: bool = _ativadas.is_empty()  # Ainda não ativou (falta o Enter).
+		await _toque(KEY_ENTER)  # Enter.
 		_confere(abriu and antes_enter and _ativadas == [data.id] and _fechado()
 				and _hab.get_cooldown_left(data.id) > 0.0,
 				"%s %s: abre, só dispara no Enter, fecha, recarga" % [data.id, data.sequence])
@@ -399,6 +418,7 @@ func _rodar() -> void:
 	get_tree().quit(1 if _falhas > 0 else 0)
 
 
+## Confere se as ações do modo comando existem no Input Map e se o movimento usa só WASD.
 func _testar_input_map() -> void:
 	var setas: Array[Key] = [KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT]
 	var wasd: Array[Key] = [KEY_W, KEY_A, KEY_S, KEY_D]
