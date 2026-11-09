@@ -52,6 +52,10 @@ func _setup() -> void:
 	_catalog = _abilities.catalog
 	_command_hud.setup(_abilities)
 	_touch_pad.setup(_abilities, _command_hud)
+	var emp_preview: EmpRangePreview = EmpRangePreview.new()  # círculo do alcance do EMP (no mundo, filho do Player)
+	emp_preview.name = &"EmpRangePreview"
+	_player.add_child(emp_preview)
+	emp_preview.setup(_abilities)
 	CombatUtils.connect_once(_command_hud.slot_pressed, _on_slot_pressed)
 	CombatUtils.connect_once(_touch_pad.build_requested, _on_slot_pressed)
 	CombatUtils.connect_once(_build_menu.close_requested, _close_build_menu)

@@ -5,8 +5,11 @@ extends AbilityEffect
 ## O inimigo volta ao estado de repouso (cancelando o ataque em curso), a máquina de estados fica
 ## travada durante o atordoamento e, no fim, ele volta a perseguir se ainda enxerga o Player.
 
+## Raio padrão (px) do pulso. A prévia do EMP (`EmpRangePreview`) lê o mesmo valor: fonte única.
+const DEFAULT_RADIUS: float = 140.0
+
 @export_group("Pulso")
-@export var radius: float = 140.0
+@export var radius: float = DEFAULT_RADIUS
 @export var damage: int = 15
 ## Distância (px) do empurrão e o tempo (s) que ele leva.
 @export var push_distance: float = 90.0
