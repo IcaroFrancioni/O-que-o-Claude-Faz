@@ -8,10 +8,14 @@ extends CanvasLayer
 signal ability_chosen(ability: AbilityData)
 ## O jogador preferiu manter as habilidades que tem (só quando as 3 cartas são lendárias).
 signal kept_current
+## O jogador pediu o reroll (sortear as cartas de novo). Quem abre o menu decide se pode e sorteia.
+signal reroll_requested
 
 const CARD_SEPARATION: int = Palette.UNIT * 3
 const BOX_SEPARATION: int = Palette.UNIT * 3
 const CONFIRM_WIDTH: float = 460.0
+const REROLL_TEXT: String = "Rerrolar (1 por run)"
+const REROLL_USED_TEXT: String = "Rerrolar (já usado)"
 ## Atraso (s) entre o aparecimento de uma carta e a seguinte.
 const CARD_STAGGER: float = 0.08
 
@@ -25,6 +29,7 @@ var _root: Control = null
 var _title: Label = null
 var _cards_box: HBoxContainer = null
 var _keep_button: Button = null
+var _reroll_button: Button = null
 var _confirm: Control = null
 var _confirm_text: Label = null
 var _confirm_ok: Button = null
@@ -36,6 +41,9 @@ var _pending: AbilityData = null
 var _is_open: bool = false
 var _locked: bool = false
 var _confirming: bool = false
+var _reroll_used: bool = false
+## Cada abertura/reroll ganha um número; só o último destrava a entrada (o atraso anti-clique não encurta).
+var _lock_token: int = 0
 
 
 func _ready() -> void:
@@ -56,6 +64,38 @@ func open(level: int, offer: Array[AbilityData], owned: Array[AbilityData]) -> v
 	_confirming = false
 	_confirm.visible = false
 	_title.text = "NÍVEL %d — ESCOLHA UMA HABILIDADE" % level
+	_fill_cards(offer)
+
+	_is_open = true
+	visible = true
+	_root.modulate.a = 0.0
+	var tween: Tween = UiTween.create(self)
+	tween.tween_property(_root, ^"modulate:a", 1.0, fade_time)
+	await _lock_input()
+
+
+## Reroll: troca as cartas por um novo sorteio (o aviso e a confirmação das lendárias seguem iguais).
+## A entrada fica travada de novo pelo mesmo atraso anti-clique acidental.
+func reroll(offer: Array[AbilityData]) -> void:
+	if not _is_open:
+		return
+	_clear_cards()
+	_pending = null
+	_confirming = false
+	_confirm.visible = false
+	_fill_cards(offer)
+	await _lock_input()
+
+
+## Mostra o botão de reroll como disponível ou como já usado (desabilitado).
+func set_reroll_used(used: bool) -> void:
+	_reroll_used = used
+	_reroll_button.disabled = used
+	_reroll_button.text = REROLL_USED_TEXT if used else REROLL_TEXT
+
+
+## Cria as cartas da oferta, liga o foco e anima a entrada.
+func _fill_cards(offer: Array[AbilityData]) -> void:
 	var all_legendary: bool = not offer.is_empty()
 	var has_legendary: bool = false
 	for data: AbilityData in offer:
@@ -76,13 +116,15 @@ func open(level: int, offer: Array[AbilityData], owned: Array[AbilityData]) -> v
 	for i: int in _cards.size():
 		_cards[i].play_entrance(float(i) * CARD_STAGGER)
 
-	_is_open = true
+
+## Ignora toda entrada por `input_delay` segundos (evita escolher sem querer em combate) e depois foca a 1ª carta.
+func _lock_input() -> void:
 	_locked = true
-	visible = true
-	_root.modulate.a = 0.0
-	var tween: Tween = UiTween.create(self)
-	tween.tween_property(_root, ^"modulate:a", 1.0, fade_time)
+	_lock_token += 1
+	var token: int = _lock_token
 	await get_tree().create_timer(input_delay, true, false, true).timeout
+	if token != _lock_token:
+		return  # abriu ou rerrolou de novo: quem veio por último destrava
 	_locked = false
 	if _is_open and not _cards.is_empty():
 		_cards[0].grab_focus()
@@ -98,6 +140,7 @@ func close() -> void:
 func _clear_cards() -> void:
 	for card: LevelUpCard in _cards:
 		if is_instance_valid(card):
+			_cards_box.remove_child(card)  # sai já: o reroll não pode deixar a carta velha aparecer junto
 			card.queue_free()
 	_cards.clear()
 
@@ -149,6 +192,12 @@ func _build() -> void:
 	_keep_button.pressed.connect(_on_keep_pressed)
 	_keep_button.visible = false
 	box.add_child(_keep_button)
+
+	_reroll_button = PixelButton.new()
+	_reroll_button.text = REROLL_TEXT
+	_reroll_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_reroll_button.pressed.connect(_on_reroll_pressed)
+	box.add_child(_reroll_button)
 
 	_build_confirm()
 
@@ -254,6 +303,12 @@ func _on_back_pressed() -> void:
 	_pending = null
 
 
+func _on_reroll_pressed() -> void:
+	if _locked or not _is_open or _confirming or _reroll_used:
+		return
+	reroll_requested.emit()
+
+
 func _on_keep_pressed() -> void:
 	if _locked or not _is_open or _confirming:
 		return
@@ -266,3 +321,4 @@ func _set_focusable(enabled: bool) -> void:
 	for card: LevelUpCard in _cards:
 		card.focus_mode = mode
 	_keep_button.focus_mode = mode
+	_reroll_button.focus_mode = mode

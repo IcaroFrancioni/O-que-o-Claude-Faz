@@ -18,6 +18,8 @@ static var owned_ids: Array[StringName] = []
 static var rejected_ids: Array[StringName] = []
 ## True depois que o jogador abriu o modo comando pela primeira vez (a dica na tela some).
 static var command_hint_seen: bool = false
+## True depois que o jogador usou o único reroll da run no menu de escolha de habilidade.
+static var reroll_used: bool = false
 
 static var _checkpoint: Dictionary = {}
 static var _restart_pending: bool = false
@@ -32,6 +34,7 @@ static func reset() -> void:
 	owned_ids.clear()
 	rejected_ids.clear()
 	command_hint_seen = false
+	reroll_used = false
 	RunStats.reset()
 
 
@@ -82,6 +85,7 @@ static func _save_checkpoint() -> void:
 		"resolved": resolved_level,
 		"owned": owned_ids.duplicate(),
 		"rejected": rejected_ids.duplicate(),
+		"reroll_used": reroll_used,
 	}
 
 
@@ -91,3 +95,4 @@ static func _restore_checkpoint() -> void:
 	resolved_level = int(_checkpoint["resolved"])
 	owned_ids.assign(_checkpoint["owned"])
 	rejected_ids.assign(_checkpoint["rejected"])
+	reroll_used = bool(_checkpoint.get("reroll_used", false))

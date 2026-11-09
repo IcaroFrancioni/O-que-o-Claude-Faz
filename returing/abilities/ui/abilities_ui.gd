@@ -62,6 +62,7 @@ func _setup() -> void:
 	CombatUtils.connect_once(_experience.level_up, _on_level_up)
 	CombatUtils.connect_once(_menu.ability_chosen, _on_ability_chosen)
 	CombatUtils.connect_once(_menu.kept_current, _on_kept_current)
+	CombatUtils.connect_once(_menu.reroll_requested, _on_reroll_requested)
 	# Níveis que subiram em outra fase (ou antes do menu poder abrir) e ainda não foram resolvidos.
 	for level: int in _experience.get_pending_levels():
 		_queue.append(level)
@@ -100,7 +101,48 @@ func _open_next() -> void:
 	_previous_mouse_mode = Input.mouse_mode
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	get_tree().paused = true
+	_menu.set_reroll_used(RunState.reroll_used)
 	_menu.open(level, offer, _abilities.abilities)
+
+
+## Reroll (1 por run): sorteia as cartas de novo, evitando repetir as que acabaram de aparecer quando
+## o conjunto de habilidades permite. Cancelar a confirmação de uma lendária não passa por aqui, então
+## não gasta o reroll. Sem cartas diferentes para mostrar, o reroll não é gasto.
+func _on_reroll_requested() -> void:
+	if not _menu_open or RunState.reroll_used or _catalog == null:
+		return
+	var novas: Array[AbilityData] = _draw_reroll(_current_offer)
+	if _same_abilities(novas, _current_offer):
+		return
+	RunState.reroll_used = true
+	_current_offer = novas
+	_menu.set_reroll_used(true)
+	_menu.reroll(novas)
+
+
+## Novo sorteio sem as cartas que já apareceram; se o conjunto é pequeno, completa com as antigas.
+func _draw_reroll(anteriores: Array[AbilityData]) -> Array[AbilityData]:
+	var evitar: Array[StringName] = RunState.excluded_ids()
+	for data: AbilityData in anteriores:
+		evitar.append(data.id)
+	var oferta: Array[AbilityData] = _catalog.draw_offer(_current_level, evitar)
+	var reserva: Array[AbilityData] = anteriores.duplicate()
+	reserva.shuffle()
+	for data: AbilityData in reserva:
+		if oferta.size() >= AbilityCatalog.OFFER_SIZE:
+			break
+		if not oferta.has(data):
+			oferta.append(data)
+	return oferta
+
+
+func _same_abilities(a: Array[AbilityData], b: Array[AbilityData]) -> bool:
+	if a.size() != b.size():
+		return false
+	for data: AbilityData in a:
+		if not b.has(data):
+			return false
+	return true
 
 
 func _on_ability_chosen(data: AbilityData) -> void:
