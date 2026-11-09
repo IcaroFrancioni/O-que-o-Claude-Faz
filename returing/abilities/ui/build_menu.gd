@@ -138,7 +138,8 @@ func _fill_active(abilities: AbilityComponent, owned: Array[AbilityData]) -> voi
 		var left: float = abilities.get_cooldown_left(data.id)
 		var elapsed: float = data.cooldown - left
 		if data.duration > 0.0 and left > 0.0 and elapsed < data.duration:
-			lines.append("%s  ·  %.1f s" % [data.display_name, data.duration - elapsed])
+			var fase: String = "  (penalidade)" if data.is_penalty_at(elapsed) else ""
+			lines.append("%s%s  ·  %.1f s" % [data.display_name, fase, data.duration - elapsed])
 	_active_title.visible = not lines.is_empty()
 	for line: String in lines:
 		var label: Label = Label.new()

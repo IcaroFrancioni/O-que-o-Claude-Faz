@@ -11,6 +11,8 @@ const COLOR_SWEEP: Color = Color(0.82, 0.85, 0.95, 0.34)
 const COLOR_SWEEP_EDGE: Color = Color(1.0, 1.0, 1.0, 0.7)
 const COLOR_COOLING_TINT: Color = Color(0.0, 0.0, 0.0, 0.3)
 const COLOR_EMPTY: Color = Color(0.72, 0.7, 0.62, 0.28)
+## Cor do anel de duração na fase de penalidade (Overclock), distinta do dourado do bônus.
+const COLOR_PENALTY: Color = UiPalette.DANGER
 const RING_WIDTH: float = 3.0
 const RING_GAP: float = 4.0
 const SWEEP_POINTS: int = 48
@@ -114,6 +116,11 @@ func is_effect_active() -> bool:
 	return ability != null and _cooling and ability.duration > 0.0 and (_total - _remaining) < ability.duration
 
 
+## True durante a fase de penalidade de uma habilidade com duas fases (Overclock).
+func is_penalty_active() -> bool:
+	return is_effect_active() and ability.is_penalty_at(_total - _remaining)
+
+
 ## Texto do tempo: inteiro a partir de 10 s e uma casa decimal abaixo disso.
 static func _format_time(seconds: float) -> String:
 	if seconds >= DECIMAL_BELOW:
@@ -167,7 +174,7 @@ func _draw_overlay() -> void:
 		if is_effect_active():  # anel de duração: encolhe até o efeito acabar
 			var left: float = 1.0 - (_total - _remaining) / ability.duration
 			_overlay.draw_arc(center, radius + RING_GAP, -PI * 0.5, -PI * 0.5 + TAU * clampf(left, 0.0, 1.0),
-					SWEEP_POINTS, UiPalette.GOLD, RING_WIDTH, true)
+					SWEEP_POINTS, COLOR_PENALTY if is_penalty_active() else UiPalette.GOLD, RING_WIDTH, true)
 	if _pulse > 0.0:  # pulso: o contorno dourado se expande e some
 		var ring: PackedVector2Array = _hex(center, radius * (1.0 + PULSE_GROWTH * (1.0 - _pulse)))
 		ring.append(ring[0])
