@@ -5,7 +5,7 @@ extends AbilityEffect
 
 @export_group("Cura")
 ## Unidades da barra recuperadas e total de unidades da barra.
-@export_range(1, 12) var bar_units: int = 3
+@export_range(1, 12) var bar_units: int = 4
 @export_range(1, 24) var bar_total: int = 12
 @export var heal_color: Color = Color(0.4, 1.0, 0.5, 1.0)
 ## Duração (s) do símbolo de cura subindo.
