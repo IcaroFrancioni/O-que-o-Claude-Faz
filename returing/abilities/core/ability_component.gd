@@ -264,6 +264,7 @@ func _activate(data: AbilityData) -> void:
 	_cooldowns[data.id] = data.cooldown
 	cooldown_changed.emit(data, data.cooldown, data.cooldown)
 	_prune_effects()
+	_cancel_effects_of(data.id)
 	if data.effect_scene != null:
 		var effect: AbilityEffect = data.effect_scene.instantiate() as AbilityEffect
 		if effect == null:
@@ -345,6 +346,16 @@ func _cancel_all_effects() -> void:
 		if is_instance_valid(effect) and not effect.is_queued_for_deletion():
 			effect.cancel()
 	_effects.clear()
+
+
+## Reativar uma habilidade que ainda está ativa renova o efeito: o antigo é desfeito e não acumula.
+func _cancel_effects_of(ability_id: StringName) -> void:
+	for i: int in range(_effects.size() - 1, -1, -1):
+		var effect: AbilityEffect = _effects[i]
+		if is_instance_valid(effect) and not effect.is_queued_for_deletion() \
+				and effect.data != null and effect.data.id == ability_id:
+			effect.cancel()
+			_effects.remove_at(i)
 
 
 func _prune_effects() -> void:

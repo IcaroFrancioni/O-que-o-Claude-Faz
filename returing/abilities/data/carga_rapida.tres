@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="AbilityData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://abilities/core/ability_data.gd" id="1_data"]
+[ext_resource type="PackedScene" path="res://abilities/effects/StatBuffEffect.tscn" id="2_fx"]
+
+[resource]
+script = ExtResource("1_data")
+id = &"carga_rapida"
+display_name = "Carga Rápida"
+description = "Tempo de carga do tiro −30% por 10 s."
+sequence = Array[int]([1, 0, 1])
+cooldown = 14.0
+duration = 10.0
+rarity = 0
+glyph = 0
+effect_scene = ExtResource("2_fx")
+stat_mult = {"charge_time": 0.7}
+stat_add = {}

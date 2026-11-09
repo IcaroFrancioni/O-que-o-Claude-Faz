@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="AbilityData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://abilities/core/ability_data.gd" id="1_data"]
+[ext_resource type="PackedScene" path="res://abilities/effects/StatBuffEffect.tscn" id="2_fx"]
+
+[resource]
+script = ExtResource("1_data")
+id = &"reflexos"
+display_name = "Reflexos"
+description = "Recarga do dash −40% por 10 s."
+sequence = Array[int]([0, 2, 0])
+cooldown = 14.0
+duration = 10.0
+rarity = 0
+glyph = 0
+effect_scene = ExtResource("2_fx")
+stat_mult = {"dash_cooldown": 0.6}
+stat_add = {}
