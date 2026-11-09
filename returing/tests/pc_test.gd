@@ -3,14 +3,15 @@ extends Node
 ## só com as mudanças de combate (dano do tiro/espada, hitbox da espada, tiro rápido).
 ##   godot --headless --path . res://tests/pc_test.tscn
 
-const LEVEL: String = "res://Scenes/Fase2/Fase2.tscn"
+const LEVEL: String = "res://Scenes/Fase2/Fase2.tscn"  # Fase usada no teste.
 
-var _fails: int = 0
-var _checks: int = 0
-var _player: Player = null
-var _hits: Array[int] = []
+var _fails: int = 0  # Falhas.
+var _checks: int = 0  # Total de verificações.
+var _player: Player = null  # Jogador.
+var _hits: Array[int] = []  # Dano de cada acerto da espada.
 
 
+## Confere uma condição, mostra o resultado e conta a falha.
 func check(cond: bool, label: String) -> void:
 	_checks += 1
 	if cond:
@@ -20,33 +21,39 @@ func check(cond: bool, label: String) -> void:
 		print("  FAIL ", label)
 
 
+## Espera `n` quadros de física.
 func frames(n: int) -> void:
 	for i: int in n:
 		await get_tree().physics_frame
 
 
+## Lista os tiros do jogador que estão em uso.
 func active_projectiles() -> Array[PlayerProjectile]:
-	var out: Array[PlayerProjectile] = []
+	var out: Array[PlayerProjectile] = []  # Lista de resultado.
+	# Procura todos os tiros na árvore.
 	for n: Node in get_tree().root.find_children("*", "PlayerProjectile", true, false):
 		var p := n as PlayerProjectile
-		if p.is_in_use():
+		if p.is_in_use():  # Só os que estão em uso.
 			out.append(p)
 	return out
 
 
+## Agenda o teste para o fim do quadro.
 func _ready() -> void:
 	_run.call_deferred()
 
 
+## Testa o modo PC: valores base, tiro carregado, clique rápido e golpe de espada (dano e alcance).
 func _run() -> void:
-	var level: Node = load(LEVEL).instantiate()
-	get_tree().root.add_child(level)
-	get_tree().current_scene = level
-	await frames(40)
-	_player = level.get_node("Player") as Player
+	var level: Node = load(LEVEL).instantiate()  # Cria a fase.
+	get_tree().root.add_child(level)  # Entra na árvore.
+	get_tree().current_scene = level  # É a cena atual.
+	await frames(40)  # Espera 40 quadros.
+	_player = level.get_node("Player") as Player  # Jogador.
+	# Guarda o dano de cada acerto.
 	_player.causou_dano.connect(func(_alvo: Node, q: int) -> void: _hits.append(q))
 
-	print("-- Valores base do PC")
+	print("-- Valores base do PC")  # Valores base do PC.
 	check(not Platform.is_mobile, "Platform.is_mobile = false")
 	check(not MobileControls.ativo, "MobileControls inativo")
 	check(is_equal_approx(_player.scale.x, 1.0), "player no tamanho original")
@@ -88,10 +95,12 @@ func _run() -> void:
 	await frames(40)
 
 	print("-- Espada: acerta um inimigo na direção do cursor")
+	# Direção até o cursor.
 	var to_mouse: Vector2 = (_player.get_global_mouse_position() - _player.global_position).normalized()
+	# Tank de teste.
 	var enemy := (load("res://enemies/tank/TankEnemy.tscn") as PackedScene).instantiate() as EnemyBase
-	level.add_child(enemy)
-	enemy.global_position = _player.global_position + to_mouse * 60.0
+	level.add_child(enemy)  # Entra na fase.
+	enemy.global_position = _player.global_position + to_mouse * 60.0  # Posiciona à frente do jogador.
 	# Desliga só a IA (um corpo com process_mode DISABLED sai do espaço de física).
 	enemy.set_physics_process(false)
 	enemy.state_machine.process_mode = Node.PROCESS_MODE_DISABLED
@@ -104,5 +113,5 @@ func _run() -> void:
 	check(not _hits.is_empty(), "espada acertou")
 	if not _hits.is_empty():
 		check(_hits[0] == 50, "dano da espada = 50 (%d)" % _hits[0])
-	print("== %d verificações, %d falhas" % [_checks, _fails])
-	get_tree().quit(1 if _fails > 0 else 0)
+	print("== %d verificações, %d falhas" % [_checks, _fails])  # Resultado.
+	get_tree().quit(1 if _fails > 0 else 0)  # Sai com código de erro se algo falhou.
