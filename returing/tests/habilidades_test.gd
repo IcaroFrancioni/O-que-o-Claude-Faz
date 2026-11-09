@@ -844,9 +844,10 @@ func _testar_reroll() -> void:
 	menu.open(3, lendarias, donas)
 	await _frames(4)
 	var caixa: Control = menu._cards_box.get_parent() as Control
-	var area: Vector2 = get_viewport().get_visible_rect().size
-	_confere(caixa.get_combined_minimum_size().y <= area.y,
-			"Reroll: menu com 3 lendárias cabe na altura da tela (%.0f de %.0f)" % [caixa.get_combined_minimum_size().y, area.y])
+	# Referência: a altura base do projeto (a janela do modo headless tem outro tamanho).
+	var altura_base: float = float(ProjectSettings.get_setting("display/window/size/viewport_height"))
+	_confere(caixa.get_combined_minimum_size().y <= altura_base,
+			"Reroll: menu com 3 lendárias cabe na altura base (%.0f de %.0f)" % [caixa.get_combined_minimum_size().y, altura_base])
 	menu.close()
 	_fim_secao = true
 
@@ -909,17 +910,24 @@ func _testar_hud_slots() -> void:
 	# Com o máximo de habilidades (3 slots) nada se sobrepõe nem sai da tela.
 	_ab.learn(_dados(&"pele_de_ferro"))
 	await _frames(5)
-	var retangulos: Array[Rect2] = []
-	for id: StringName in _hud()._entries:
-		retangulos.append((_hud()._entries[id]["slot"] as CooldownSlot).get_global_rect())
-	var tela: Rect2 = get_viewport().get_visible_rect()
-	var sobrepoe: bool = false
-	var fora: bool = false
-	for i: int in retangulos.size():
-		fora = fora or not tela.encloses(retangulos[i])
-		for j: int in range(i + 1, retangulos.size()):
-			sobrepoe = sobrepoe or retangulos[i].intersects(retangulos[j])
-	_confere(retangulos.size() == 3 and not sobrepoe and not fora, "HUD: 3 slots sem sobreposição e dentro da tela")
+	var janela: Window = get_window()
+	var tamanho_antes: Vector2i = janela.size
+	for tamanho: Vector2i in [Vector2i(1152, 648), Vector2i(1280, 720), Vector2i(1024, 768)]:  # 16:9 e 4:3
+		janela.size = tamanho
+		await _frames(4)
+		var retangulos: Array[Rect2] = []
+		for id: StringName in _hud()._entries:
+			retangulos.append((_hud()._entries[id]["slot"] as CooldownSlot).get_global_rect())
+		var tela: Rect2 = get_viewport().get_visible_rect()
+		var sobrepoe: bool = false
+		var fora: bool = false
+		for i: int in retangulos.size():
+			fora = fora or not tela.encloses(retangulos[i])
+			for j: int in range(i + 1, retangulos.size()):
+				sobrepoe = sobrepoe or retangulos[i].intersects(retangulos[j])
+		_confere(retangulos.size() == 3 and not sobrepoe and not fora,
+				"HUD: 3 slots sem sobreposição e dentro da tela em %dx%d (área %s)" % [tamanho.x, tamanho.y, tela.size])
+	janela.size = tamanho_antes
 
 
 	_fim_secao = true
