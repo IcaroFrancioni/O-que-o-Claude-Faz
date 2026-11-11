@@ -5,7 +5,7 @@ extends Node
 ##   2. tela preta + voz do tutorial: "Você conseguiu salvar o futuro."
 ##   3. glitch/chiado de TV
 ##   4. filmagem antiga (REC, relógio, granulação...): o chefão sozinho no laboratório
-##   5. o Turing chega ao computador, o robô à sua frente, e a fala numa caixa com o nome de quem fala
+##   5. o Turing chega ao computador (o robô segue ao fundo) e a fala vem numa caixa com o nome de quem fala
 ##   6. fade para preto e, só então, a tela final da run (RunRecorder escuta `cutscene_finished`)
 ## Cada etapa é uma função com `await`, na ordem de `_run()`: para ajustar o ritmo, mexa nas constantes e
 ## nos @export abaixo.
@@ -29,12 +29,12 @@ const BURST_INTERVAL: float = 1.1  # De quanto em quanto tempo a filmagem "falha
 
 # ===== CENÁRIO (pixels da imagem do laboratório, 1600 x 880) =====
 const LAB_SIZE: Vector2 = Vector2(1600.0, 880.0)
-const ROBOT_FEET: Vector2 = Vector2(660.0, 715.0)  # Pés do robô, na frente do Turing (um pouco à esquerda, para não sumir no computador).
+const ROBOT_FEET: Vector2 = Vector2(850.0, 342.0)  # Pés do robô: no fundo do laboratório, atrás da cápsula central.
 const TURING_FEET: Vector2 = Vector2(815.0, 795.0)  # Pés do Turing, diante do computador.
 const TURING_START: Vector2 = Vector2(815.0, 960.0)  # De onde ele entra (fora da imagem, embaixo).
 const TURING_SCALE: float = 0.5
 const TURING_WALK_SPEED: float = 110.0
-const ROBOT_SCALE: float = 2.6
+const ROBOT_SCALE: float = 1.6
 const ROBOT_CELL: Vector2 = Vector2(500.0 / 6.0, 500.0 / 6.0)  # Quadro da folha Guide_sprite (6 x 6).
 const ZOOM_START: float = 1.0
 const ZOOM_END: float = 1.18
@@ -253,7 +253,7 @@ func _build() -> void:
 	_cover_layer.add_child(black)
 	black.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
-	_cam_center = Vector2(LAB_SIZE.x * 0.5, 520.0)
+	_cam_center = Vector2(LAB_SIZE.x * 0.5, 440.0)
 	_apply_camera()
 
 
