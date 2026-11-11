@@ -101,6 +101,9 @@ func _on_player_charge_changed(ratio: float) -> void:
 func _on_level_completed(next_scene: String) -> void:
 	_next_scene = next_scene  # Guarda a próxima cena.
 	var has_next: bool = not next_scene.is_empty()  # Existe próxima fase?
+	if not has_next:  # Última fase: "Fim de jogo" em tela cheia, igual ao game over.
+		_show_end_of_game()
+		return
 	continue_button.visible = has_next  # "Continuar" só se há próxima fase.
 	if complete_label != null:  # Título só se há próxima fase.
 		complete_label.visible = has_next  # Título.
@@ -108,6 +111,15 @@ func _on_level_completed(next_scene: String) -> void:
 		complete_banner.visible = not has_next  # Letreiro.
 	complete_panel.show()  # Mostra o painel.
 	(continue_button if has_next else complete_menu_button).grab_focus()  # Foco no botão certo.
+
+
+## "Fim de jogo" da última fase: reaproveita o painel de tela cheia do game over (estrelas + letreiro),
+## só com o botão "Menu principal" (sem "Tentar de novo"). A tela de resultado abre por cima depois.
+func _show_end_of_game() -> void:
+	complete_panel.hide()  # O cartão pequeno não é mais usado na última fase.
+	retry_button.hide()  # Vitória: não há "Tentar de novo".
+	game_over_panel.show()  # Mesmo painel em tela cheia do game over.
+	game_over_menu_button.grab_focus()  # Foco no botão de menu.
 
 
 ## Game Over em tela cheia (o painel cobre a HUD).
