@@ -4,8 +4,8 @@ extends Node
 ##   1. a HUD some e o jogador perde o controle
 ##   2. tela preta + voz do tutorial: "Você conseguiu salvar o futuro."
 ##   3. glitch/chiado de TV
-##   4. filmagem antiga (REC, relógio, granulação...): o chefão sozinho no laboratório
-##   5. o Turing chega ao computador (o robô segue ao fundo) e a fala vem numa caixa com o nome de quem fala
+##   4. filmagem antiga (REC, relógio, granulação...): o chefão ainda protótipo (só o corpo), em montagem
+##   5. o Turing chega ao computador, ao lado do protótipo, e a fala vem numa caixa com o nome de quem fala
 ##   6. fade para preto e, só então, a tela final da run (RunRecorder escuta `cutscene_finished`)
 ## Cada etapa é uma função com `await`, na ordem de `_run()`: para ajustar o ritmo, mexa nas constantes e
 ## nos @export abaixo.
@@ -29,13 +29,17 @@ const BURST_INTERVAL: float = 1.1  # De quanto em quanto tempo a filmagem "falha
 
 # ===== CENÁRIO (pixels da imagem do laboratório, 1600 x 880) =====
 const LAB_SIZE: Vector2 = Vector2(1600.0, 880.0)
-const ROBOT_FEET: Vector2 = Vector2(850.0, 342.0)  # Pés do robô: no fundo do laboratório, atrás da cápsula central.
+const ROBOT_FEET: Vector2 = Vector2(1000.0, 770.0)  # Base do protótipo, no chão ao lado do Turing.
 const TURING_FEET: Vector2 = Vector2(815.0, 795.0)  # Pés do Turing, diante do computador.
 const TURING_START: Vector2 = Vector2(815.0, 960.0)  # De onde ele entra (fora da imagem, embaixo).
 const TURING_SCALE: float = 0.5
 const TURING_WALK_SPEED: float = 110.0
-const ROBOT_SCALE: float = 1.6
+const ROBOT_SCALE: float = 3.0
+const ROBOT_FRAME_BODY: int = 24  # Quadro da folha Guide_sprite só com a cabeça e o tronco (cabos expostos).
+const ROBOT_FRAME_ON: int = 34  # O mesmo corpo com a luz verde do peito acesa (módulo ligado).
 const ROBOT_CELL: Vector2 = Vector2(500.0 / 6.0, 500.0 / 6.0)  # Quadro da folha Guide_sprite (6 x 6).
+const ROBOT_BODY_BOTTOM: float = 34.0  # Linha (no quadro) onde o tronco termina.
+const ROBOT_STAND_HEIGHT: float = 48.0  # Altura do suporte de montagem (px do cenário).
 const ZOOM_START: float = 1.0
 const ZOOM_END: float = 1.18
 
@@ -58,7 +62,8 @@ var _running: bool = false
 var _fx: ScreenGlitch = null
 var _footage_layer: CanvasLayer = null
 var _world: Node2D = null
-var _robot: Sprite2D = null
+var _robot: Node2D = null  # O protótipo do chefão (suporte + corpo).
+var _robot_sprite: Sprite2D = null
 var _turing: CutsceneTeleporte.Actor = null
 var _filter: FootageFilter = null
 var _cover_layer: CanvasLayer = null
@@ -130,7 +135,7 @@ func _step_tv_transition() -> void:
 	_footage_layer.visible = true
 	_filter.visible = true
 	_filming = true
-	_start_camera_push(Vector2(LAB_SIZE.x * 0.5, 600.0), FOOTAGE_BEAT + TYPING_BEAT + 3.0)
+	_start_camera_push(Vector2(900.0, 620.0), FOOTAGE_BEAT + TYPING_BEAT + 3.0)
 	await _fx.fade_black(0.0, 0.01)  # Por baixo do chiado.
 	await _fx.stop_static(TV_REVEAL_FADE)  # Antes do glitch: os dois dividem o mesmo Tween do ScreenGlitch.
 	await _fx.glitch(TV_GLITCH_TIME)
@@ -148,7 +153,9 @@ func _step_footage() -> void:
 
 ## 5. A fala, em caixa com o nome de quem fala (sem botão de avançar).
 func _step_dialogue() -> void:
-	var dialogue: Dialogue = Dialogue.show_lines(self, dialogue_lines, Dialogue.Style.BOX, speaker_name, null, false)
+	_robot_sprite.frame = ROBOT_FRAME_ON  # O módulo liga: luz verde no peito.
+	# Caixa no alto: embaixo ficam o Turing e o protótipo.
+	var dialogue: Dialogue = Dialogue.show_lines(self, dialogue_lines, Dialogue.Style.BOX, speaker_name, null, false, true)
 	dialogue.hold_time = DIALOGUE_HOLD
 	await dialogue.finished
 
@@ -214,20 +221,7 @@ func _build() -> void:
 	bg.centered = false
 	_world.add_child(bg)
 
-	_robot = Sprite2D.new()  # O chefão, quadro 0 (parado, de frente).
-	_robot.name = "Robo"
-	_robot.texture = _load_texture(ROBOT_SHEET)
-	_robot.hframes = 6
-	_robot.vframes = 6
-	_robot.frame = 0
-	_robot.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_robot.scale = Vector2.ONE * ROBOT_SCALE
-	_robot.offset = Vector2(0.0, -ROBOT_CELL.y * 0.5 + 2.0)  # A origem do nó fica nos pés.
-	_robot.position = ROBOT_FEET
-	_world.add_child(_robot)
-	var bob := create_tween().set_loops()  # Respira de leve.
-	bob.tween_property(_robot, "position:y", ROBOT_FEET.y - 2.0, 0.9).set_trans(Tween.TRANS_SINE)
-	bob.tween_property(_robot, "position:y", ROBOT_FEET.y, 0.9).set_trans(Tween.TRANS_SINE)
+	_build_prototype()
 
 	_turing = CutsceneTeleporte.Actor.new()  # Mesmo personagem da cutscene da Fase 1.
 	_turing.name = "Turing"
@@ -253,8 +247,49 @@ func _build() -> void:
 	_cover_layer.add_child(black)
 	black.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
-	_cam_center = Vector2(LAB_SIZE.x * 0.5, 440.0)
+	_cam_center = Vector2(920.0, 540.0)
 	_apply_camera()
+
+
+## O chefão ainda protótipo: só o corpo (cabeça e tronco, com os cabos à mostra) sobre um suporte de montagem.
+func _build_prototype() -> void:
+	_robot = Node2D.new()
+	_robot.name = "Prototipo"
+	_robot.position = ROBOT_FEET
+	_world.add_child(_robot)
+
+	var shadow := Polygon2D.new()  # Sombra no chão, como a do Turing.
+	var pts := PackedVector2Array()
+	for i: int in 24:
+		var angle: float = TAU * float(i) / 24.0
+		pts.append(Vector2(cos(angle) * 70.0, sin(angle) * 16.0))
+	shadow.polygon = pts
+	shadow.color = Color(0.0, 0.0, 0.0, 0.35)
+	_robot.add_child(shadow)
+
+	var base := Polygon2D.new()  # Base do suporte.
+	base.polygon = PackedVector2Array([Vector2(-56, 6), Vector2(56, 6), Vector2(46, -10), Vector2(-46, -10)])
+	base.color = Color("#5b6472")
+	_robot.add_child(base)
+	var post := Polygon2D.new()  # Haste do suporte, até o tronco.
+	post.polygon = PackedVector2Array([Vector2(-13, -8), Vector2(13, -8), Vector2(13, -ROBOT_STAND_HEIGHT), Vector2(-13, -ROBOT_STAND_HEIGHT)])
+	post.color = Color("#8a93a3")
+	_robot.add_child(post)
+
+	_robot_sprite = Sprite2D.new()
+	_robot_sprite.texture = _load_texture(ROBOT_SHEET)
+	_robot_sprite.hframes = 6
+	_robot_sprite.vframes = 6
+	_robot_sprite.frame = ROBOT_FRAME_BODY
+	_robot_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_robot_sprite.scale = Vector2.ONE * ROBOT_SCALE
+	# Centro do quadro de modo que o fim do tronco fique no topo da haste.
+	var rest_y: float = -ROBOT_STAND_HEIGHT - (ROBOT_BODY_BOTTOM - ROBOT_CELL.y * 0.5) * ROBOT_SCALE + 6.0
+	_robot_sprite.position = Vector2(0.0, rest_y)
+	_robot.add_child(_robot_sprite)
+	var hover := create_tween().set_loops()  # Balança de leve, como preso por cabos.
+	hover.tween_property(_robot_sprite, "position:y", rest_y - 2.0, 1.1).set_trans(Tween.TRANS_SINE)
+	hover.tween_property(_robot_sprite, "position:y", rest_y, 1.1).set_trans(Tween.TRANS_SINE)
 
 
 func _load_texture(path: String) -> Texture2D:

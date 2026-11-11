@@ -39,6 +39,7 @@ const VOICE_JITTER_STEP: float = 0.06
 const BOX_FONT_SIZE: int = 32
 const BOX_NAME_SIZE: int = 28
 const BOX_HINT_SIZE: int = 22
+const BOX_TOP_MARGIN: float = 96.0  # Distância do alto quando `box_at_top` (abaixo do REC e do nome da câmera).
 
 @export_group("Texto")
 @export var style: Style = Style.BOX
@@ -47,6 +48,8 @@ const BOX_HINT_SIZE: int = 22
 @export var backdrop: Texture2D = null  # Ilustração de fundo (só no BOX).
 ## Mostra o botão "Avançar" na caixa (só no BOX). Desligado, avança por tempo, clique ou Enter/Espaço/E.
 @export var show_advance_button: bool = true
+## Põe a caixa no alto da tela, abaixo da faixa de cima (para não cobrir quem está embaixo). Só no BOX.
+@export var box_at_top: bool = false
 
 @export_group("Avanço")
 ## Liga: depois de digitar a fala, espera `hold_time` e passa para a próxima sozinho.
@@ -86,10 +89,11 @@ func _ready() -> void:
 
 ## Cria, adiciona em `parent` e toca as falas. Devolve o diálogo (use `await d.finished`).
 static func show_lines(parent: Node, new_lines: PackedStringArray, new_style: Style = Style.BOX,
-		new_speaker: String = "", new_backdrop: Texture2D = null, new_button: bool = true) -> Dialogue:
+		new_speaker: String = "", new_backdrop: Texture2D = null, new_button: bool = true, new_box_top: bool = false) -> Dialogue:
 	var dialogue: Dialogue = Dialogue.new()
 	dialogue.free_on_finish = true
 	dialogue.show_advance_button = new_button
+	dialogue.box_at_top = new_box_top
 	dialogue.style = new_style
 	dialogue.speaker = new_speaker
 	dialogue.backdrop = new_backdrop
@@ -225,6 +229,11 @@ func _kill_tween() -> void:
 func _apply_style() -> void:
 	var is_box: bool = style == Style.BOX
 	_box.visible = is_box
+	if box_at_top:  # Mesma caixa (altura de 116 px), colada no alto.
+		_box.anchor_top = 0.0
+		_box.anchor_bottom = 0.0
+		_box.offset_top = BOX_TOP_MARGIN
+		_box.offset_bottom = BOX_TOP_MARGIN + 116.0
 	_name_label.visible = is_box and not speaker.is_empty()
 	_name_label.text = speaker
 	_button.visible = is_box and show_advance_button
