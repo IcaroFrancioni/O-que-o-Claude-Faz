@@ -1,7 +1,7 @@
 class_name SalaNova
 extends Node2D
 ## Sala nova (destino da porta do labirinto): uma sala simples e iluminada. Tocar no cristal do núcleo
-## dispara a transição (glitch -> chiado -> voz do tutorial -> chiado -> "era uma armadilha", ver
+## dispara a transição (glitch -> chiado -> falas em azul sobre tela preta, no estilo da voz do tutorial, ver
 ## CrystalTransition) e leva à fase de defesa (Defesa.tscn), que por fim segue para o quiz (Fase2.tscn).
 
 ## Próxima cena depois da transição do cristal (vazio = última fase).

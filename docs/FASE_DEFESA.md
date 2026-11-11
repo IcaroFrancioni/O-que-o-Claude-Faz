@@ -37,7 +37,7 @@ Quantidades e limite de inimigos vivos (`max_active`) ficam no `.tres`. Fluxo: p
 
 ## Cutscenes e diálogo (`Dialogue`, `ScreenGlitch`, `CrystalTransition`)
 
-Copiam o que o jogo já tem: a **voz do tutorial** (VT323 44 px, #d8ecff com brilho azul, no alto da tela) para "Você conseguiu!", e a **caixa da cutscene** (Panel do `main_theme`, nome em dourado, botão "Avançar", ilustração `Lab-Turing.png`) para o ser misterioso. Glitch com aberração RGB e fatias, chiado procedural e distorção de teletransporte (shaders). **Segurar ESC** pula a sequência.
+Copiam o que o jogo já tem: a **voz do tutorial** (VT323 44 px, #d8ecff com brilho azul, no alto da tela) em **todas** as falas da transição do cristal ("Você conseguiu!" e as falas da armadilha), em sequência sobre a tela preta, sem trocar para uma cutscene. A **caixa da cutscene** (Panel do `main_theme`, nome em dourado, botão "Avançar", ilustração `Lab-Turing.png`) continua só na saída do portal da Defesa. Glitch com aberração RGB e fatias, chiado procedural e distorção de teletransporte (shaders). **Segurar ESC** pula a sequência.
 
 ## Testes
 
