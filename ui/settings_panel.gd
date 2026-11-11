@@ -10,6 +10,8 @@ signal back_requested
 
 const TITLE: String = "CONFIGURAÇÕES"  # Textos fixos da tela.
 const BACK_TEXT: String = "Voltar"
+const TILT_BUTTON_TEXT: String = "Acelerômetro"
+const TILT_TITLE: String = "ACELERÔMETRO"
 const SFX_LABEL: String = "Efeitos sonoros"
 const MUSIC_LABEL: String = "Música principal"
 ## Largura mínima (px) da caixa e altura (px) do botão e do slider.
@@ -20,6 +22,12 @@ const PERCENT_WIDTH: float = 72.0
 
 var _sliders: Array[HSlider] = []  # Sliders de volume.
 var _back_button: PixelButton = null  # Botão "Voltar".
+# Celular: página do acelerômetro (sensibilidade, zona morta, intervalo e calibração).
+var _tilt_page: VBoxContainer = null
+var _audio_children: Array[Node] = []  # Peças da página de áudio (escondidas na página do acelerômetro).
+var _calibrate_label: Label = null
+var _calibrate_token: int = 0
+var _preview: TiltPreview = null
 
 
 ## Monta a tela: título, dois sliders de volume e o botão de voltar.
@@ -37,12 +45,22 @@ func _ready() -> void:
 	_add_slider_row(SFX_LABEL, &"SFX")  # Slider dos efeitos sonoros.
 	_add_slider_row(MUSIC_LABEL, &"Music")  # Slider da música.
 
+	if Platform.is_mobile():  # Só no celular: ajustes do acelerômetro numa página própria.
+		var tilt_button: PixelButton = PixelButton.new()
+		tilt_button.name = "TiltButton"
+		tilt_button.text = TILT_BUTTON_TEXT
+		tilt_button.custom_minimum_size.y = BUTTON_HEIGHT
+		tilt_button.pressed.connect(_show_tilt_page.bind(true))
+		add_child(tilt_button)
 	add_child(HSeparator.new())
 	_back_button = PixelButton.new()  # Botão de voltar.
 	_back_button.text = BACK_TEXT
 	_back_button.custom_minimum_size.y = BUTTON_HEIGHT
 	_back_button.pressed.connect(_on_back_pressed)  # Voltar avisa quem usa a tela.
 	add_child(_back_button)
+	_audio_children = get_children()
+	if Platform.is_mobile():
+		_build_tilt_page()
 
 
 ## Dá o foco ao primeiro slider (para navegar sem mouse).
@@ -101,3 +119,135 @@ func _update_percent(percent: Label, value: float) -> void:
 ## Botão "Voltar": avisa quem usa a tela.
 func _on_back_pressed() -> void:
 	back_requested.emit()  # Avisa.
+
+
+# --- Acelerômetro (só no celular) ---
+
+## Monta a página do acelerômetro: três sliders, o indicador ao vivo e o botão "Calibrar".
+func _build_tilt_page() -> void:
+	_tilt_page = VBoxContainer.new()
+	_tilt_page.name = "TiltPage"
+	_tilt_page.visible = false
+	_tilt_page.add_theme_constant_override(&"separation", Palette.UNIT)
+	add_child(_tilt_page)
+	var title: Label = Label.new()
+	title.text = TILT_TITLE
+	title.theme_type_variation = &"PanelTitleLabel"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_tilt_page.add_child(title)
+	_add_tilt_slider("Sensibilidade", 50.0, 250.0, 5.0, TiltInput.sensitivity * 100.0, "%d%%",
+			func(v: float) -> void: TiltInput.sensitivity = v / 100.0)
+	_add_tilt_slider("Zona morta", 50.0, 250.0, 5.0, TiltInput.deadzone * 100.0, "%d%%",
+			func(v: float) -> void: TiltInput.deadzone = v / 100.0)
+	_add_tilt_slider("Intervalo entre setas", 50.0, 1000.0, 10.0, TiltInput.cooldown * 1000.0, "%d ms",
+			func(v: float) -> void: TiltInput.cooldown = v / 1000.0)
+	var auto_check: CheckButton = CheckButton.new()
+	auto_check.name = "AutoCalibrate"
+	auto_check.text = "Calibrar ao abrir o modo comando"
+	auto_check.button_pressed = TiltInput.auto_calibrate
+	auto_check.focus_mode = Control.FOCUS_NONE
+	auto_check.toggled.connect(func(on: bool) -> void:
+		TiltInput.auto_calibrate = on
+		TiltInput.save_settings())
+	_tilt_page.add_child(auto_check)
+	var row: HBoxContainer = HBoxContainer.new()
+	row.add_theme_constant_override(&"separation", Palette.UNIT * 2)
+	_tilt_page.add_child(row)
+	_preview = TiltPreview.new()
+	row.add_child(_preview)
+	var calibrate_box: VBoxContainer = VBoxContainer.new()
+	calibrate_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	calibrate_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_child(calibrate_box)
+	var calibrate: PixelButton = PixelButton.new()
+	calibrate.name = "CalibrateButton"
+	calibrate.text = "Calibrar"
+	calibrate.custom_minimum_size.y = BUTTON_HEIGHT
+	calibrate.pressed.connect(_on_calibrate_pressed)
+	calibrate_box.add_child(calibrate)
+	_calibrate_label = Label.new()
+	_calibrate_label.theme_type_variation = &"HintLabel"
+	_calibrate_label.text = "Segure o celular como for jogar."
+	_calibrate_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	calibrate_box.add_child(_calibrate_label)
+	_tilt_page.add_child(HSeparator.new())
+	var back: PixelButton = PixelButton.new()
+	back.name = "TiltBackButton"
+	back.text = BACK_TEXT
+	back.custom_minimum_size.y = BUTTON_HEIGHT
+	back.pressed.connect(_show_tilt_page.bind(false))
+	_tilt_page.add_child(back)
+
+
+## Uma linha de slider do acelerômetro (aplica ao mover e grava ao soltar).
+func _add_tilt_slider(label_text: String, min_v: float, max_v: float, step_v: float, value: float, fmt: String, apply: Callable) -> void:
+	var row: VBoxContainer = VBoxContainer.new()
+	row.add_theme_constant_override(&"separation", Palette.UNIT)
+	_tilt_page.add_child(row)
+	var header: HBoxContainer = HBoxContainer.new()
+	row.add_child(header)
+	var label: Label = Label.new()
+	label.text = label_text
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_child(label)
+	var percent: Label = Label.new()
+	percent.custom_minimum_size.x = PERCENT_WIDTH + 24.0
+	percent.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	header.add_child(percent)
+	var slider: HSlider = HSlider.new()
+	slider.min_value = min_v
+	slider.max_value = max_v
+	slider.step = step_v
+	slider.custom_minimum_size.y = SLIDER_HEIGHT
+	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	slider.focus_mode = Control.FOCUS_ALL
+	slider.value = value
+	percent.text = fmt % roundi(value)
+	slider.value_changed.connect(func(v: float) -> void:
+		apply.call(v)
+		percent.text = fmt % roundi(v))
+	slider.drag_ended.connect(func(_changed: bool) -> void: TiltInput.save_settings())
+	row.add_child(slider)
+
+
+## Mostra a página do acelerômetro (true) ou volta à de áudio (false).
+func _show_tilt_page(show: bool) -> void:
+	for child: Node in _audio_children:
+		(child as Control).visible = not show
+	_tilt_page.visible = show
+	if show:
+		TiltInput.acquire(self)  # liga o indicador ao vivo
+	else:
+		TiltInput.release(self)
+		TiltInput.save_settings()
+
+
+## Botão "Calibrar": a pose atual do celular vira o neutro.
+func _on_calibrate_pressed() -> void:
+	TiltInput.calibrate_now()
+	_calibrate_label.text = "Calibrado!"
+	_calibrate_token += 1
+	var token: int = _calibrate_token
+	await get_tree().create_timer(1.8, true, false, true).timeout
+	if token == _calibrate_token and is_instance_valid(_calibrate_label):
+		_calibrate_label.text = "Segure o celular como for jogar."
+
+
+func _exit_tree() -> void:
+	TiltInput.release(self)
+
+
+## Indicador de inclinação ao vivo (anel + bolinha) usado na página do acelerômetro.
+class TiltPreview extends Control:
+	func _init() -> void:
+		custom_minimum_size = Vector2(120.0, 120.0)
+
+	func _ready() -> void:
+		TiltInput.tilt_changed.connect(func(_t: Vector2) -> void: queue_redraw())
+
+	func _draw() -> void:
+		var rect: Rect2 = Rect2(Vector2.ZERO, size)
+		draw_texture_rect(MobileDraw.tex("tilt_ring.png"), rect, false)
+		var center: Vector2 = size * 0.5
+		var offset: Vector2 = (TiltInput.current_tilt * (size.x * 0.4 / 0.5)).limit_length(size.x * 0.4)
+		draw_texture_rect(MobileDraw.tex("tilt_dot.png"), Rect2(center + offset - Vector2(10.0, 10.0), Vector2(20.0, 20.0)), false)

@@ -1,7 +1,8 @@
 class_name CutsceneTeleporte
 extends Node2D
-## Cutscene animada: o Estudante anda por Londres até a cabine telefônica,
-## é teleportado para o laboratório e conversa com o Sistema.
+## Cutscene de abertura (a primeira do jogo, logo depois do menu): o Estudante anda por Londres até a
+## cabine telefônica, é teleportado para o laboratório e conversa com o Sistema. Depois dela vem o tutorial.
+## A caixa de fala usa o tema do jogo (main_theme: fonte VT323, caixa marrom, cores da Palette).
 ##
 ## Tudo é montado por código (a cena só precisa do nó raiz com este script).
 ## O personagem usa a folha corrigida res://sprites/turing.png.
@@ -9,8 +10,8 @@ extends Node2D
 ## Controles: clique / Espaço / Enter / E = avançar (ou completar a frase).
 ##            Segurar ESC (ação "Pause") = pular a cutscene.
 
-## Fase que abre quando a cutscene termina (depois da Fase 1 vem o labirinto).
-@export_file("*.tscn") var next_scene: String = "res://Scenes/Fase2/Labirinto.tscn"
+## Cena que abre quando a cutscene termina (o tutorial).
+@export_file("*.tscn") var next_scene: String = "res://Scenes/Tutorial/tutorial.tscn"
 ## Música de fundo (opcional).
 @export var music: AudioStream
 ## Som do teleporte (opcional). Se vazio, usa o arquivo de SFX_TELEPORT.
@@ -60,10 +61,10 @@ const SPEED_LAB := 70.0
 # --- Interface ---
 const BAR_SIZE := 0.08   # altura das barras de cinema (fração da tela)
 const SKIP_HOLD := 1.0   # segundos segurando ESC para pular
-const BOX_MARGIN_X := 120.0  # margem lateral da caixa de fala (igual à cutscene antiga)
+const BOX_MARGIN_X := 120.0  # margem lateral da caixa de fala (padrão das caixas do jogo)
 const BOX_MARGIN_Y := 68.0   # distância da borda da tela (deixa as barras de cinema livres)
 const BOX_HEIGHT := 128.0    # altura da caixa de fala
-const FONT_NAME_SIZE := 28   # mesmos tamanhos da caixa da cutscene antiga
+const FONT_NAME_SIZE := 28   # mesmos tamanhos da caixa do Dialogue
 const FONT_TEXT_SIZE := 32
 const FONT_HINT_SIZE := 22
 
@@ -133,6 +134,7 @@ var _speaker: Label
 var _text: RichTextLabel
 var _prompt: Control
 var _skip_label: Label
+var _skip_button_node: Control = null  # Celular: botão "Avançar cutscene".
 var _skip_bar: ColorRect
 var _flash: ColorRect
 var _fade: ColorRect
@@ -185,7 +187,7 @@ func _process(delta: float) -> void:
 			_finish(true)
 	elif _skip_held > 0.0:
 		_skip_held = 0.0
-		_skip_label.modulate.a = 0.35
+		_skip_label.modulate.a = 0.6
 		_skip_bar.size = Vector2(0.0, 3.0)
 
 
@@ -198,6 +200,9 @@ func _input(event: InputEvent) -> void:
 		pressed = mouse.pressed and mouse.button_index == MOUSE_BUTTON_LEFT
 	elif event.is_action_pressed("ui_accept") and not event.is_echo():
 		pressed = true
+	if pressed and mouse and _skip_button_node != null and is_instance_valid(_skip_button_node) \
+			and _skip_button_node.get_global_rect().has_point(mouse.position):
+		return  # o clique é do botão "Avançar cutscene"
 	if pressed:
 		get_viewport().set_input_as_handled()
 		_advance()
@@ -360,7 +365,8 @@ func _say(who: String, line: String, accent: Color, cps: float = 0.0) -> void:
 	if _finished:
 		return
 	_speaker.text = who
-	_speaker.add_theme_color_override("font_color", accent)
+	# Nome de quem fala sempre no dourado do jogo (como no Dialogue); `accent` fica só para os efeitos do mundo.
+	_speaker.add_theme_color_override("font_color", Palette.ACCENT)
 	_text.text = line
 	_text.visible_ratio = 0.0
 	# Se o personagem está embaixo na tela, a caixa vai para cima (para não cobri-lo)
@@ -428,7 +434,7 @@ func _set_prompt(on: bool) -> void:
 
 
 func _place_panel(top: bool) -> void:
-	# Mesma caixa da cutscene antiga (margens de 120 px, 128 px de altura), fora das barras de cinema.
+	# Caixa padrão do jogo (margens de 120 px, 128 px de altura), fora das barras de cinema.
 	if top:
 		_set_anchors(_panel, Vector4(0, 0, 1, 0), Vector4(BOX_MARGIN_X, BOX_MARGIN_Y, -BOX_MARGIN_X, BOX_MARGIN_Y + BOX_HEIGHT))
 	else:
@@ -654,7 +660,7 @@ func _build_ui() -> void:
 	_ui.add_child(_bar_bottom)
 
 	# Caixa de diálogo
-	# Caixa da cutscene antiga: Panel do main_theme (marrom com borda dourada), sem botão de avançar.
+	# Caixa padrão: Panel do main_theme (marrom com borda dourada), sem botão de avançar.
 	_panel = Panel.new()
 	_panel.name = "Dialogo"
 	_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -700,6 +706,7 @@ func _build_ui() -> void:
 	_prompt.offset_bottom = -16.0
 	var tri := Polygon2D.new()
 	tri.polygon = PackedVector2Array([Vector2(0, 0), Vector2(14, 0), Vector2(7, 10)])
+	tri.color = Palette.ACCENT
 	_prompt.add_child(tri)
 	_prompt.modulate.a = 0.0
 
@@ -710,11 +717,15 @@ func _build_ui() -> void:
 	_skip_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_skip_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_skip_label.add_theme_font_size_override("font_size", FONT_HINT_SIZE)
-	_skip_label.modulate.a = 0.35
+	_skip_label.add_theme_color_override("font_color", Palette.TEXT_DIM)
+	_skip_label.modulate.a = 0.6
 	_ui.add_child(_skip_label)
 	_set_anchors(_skip_label, Vector4(1, 0, 1, 0), Vector4(-300, 8, -20, 36))
+	if Platform.is_mobile():  # Celular: botão "Avançar cutscene" no lugar do "segure ESC".
+		_skip_label.visible = false
+		_skip_button_node = SkipCutsceneButton.attach(_ui, func() -> void: _finish(true))
 
-	_skip_bar = _new_rect("BarraPular", Color(1, 1, 1, 0.85))
+	_skip_bar = _new_rect("BarraPular", Palette.ACCENT)
 	_skip_bar.size = Vector2(0.0, 3.0)
 	_ui.add_child(_skip_bar)
 

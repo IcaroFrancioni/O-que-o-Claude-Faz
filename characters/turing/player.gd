@@ -749,7 +749,7 @@ func _criar_indicador_de_mira() -> void:
 
 ## Câmera que segue o player com zoom (só no celular; no PC fica como a cena já define).
 func _configurar_camera() -> void:
-	if Platform.is_mobile:  # Câmera de seguimento só no celular (no PC a cena já tem a sua).
+	if Platform.is_mobile():  # Câmera de seguimento só no celular (no PC a cena já tem a sua).
 		FollowCamera.attach_to(self, Platform.camera_zoom)
 
 

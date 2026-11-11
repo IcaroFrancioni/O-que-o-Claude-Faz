@@ -35,7 +35,7 @@ const VOICE_TOP: float = 54.0
 const VOICE_WIDTH: float = 960.0
 const VOICE_JITTER: float = 1.3  # Tremor da voz (px) a cada VOICE_JITTER_STEP.
 const VOICE_JITTER_STEP: float = 0.06
-# Caixa da cutscene (mesmas medidas de cutscene1.tscn).
+# Caixa da cutscene (mesmas medidas da caixa da cutscene de abertura).
 const BOX_FONT_SIZE: int = 32
 const BOX_NAME_SIZE: int = 28
 const BOX_HINT_SIZE: int = 22
@@ -74,6 +74,7 @@ var _button: Button = null  # "Avançar" (BOX).
 var _backdrop_layer: CanvasLayer = null
 var _backdrop_rect: TextureRect = null
 var _skip_label: Label = null
+var _skip_button: SkipCutsceneButton = null  # Celular: botão "Avançar cutscene" no lugar do "segure ESC".
 var _skip_timer: Timer = null
 
 
@@ -148,6 +149,9 @@ func _input(event: InputEvent) -> void:
 		pressed = mouse.pressed and mouse.button_index == MOUSE_BUTTON_LEFT
 	if not pressed or Time.get_ticks_msec() - _line_start_msec < INPUT_GRACE_MSEC:
 		return
+	if event is InputEventMouseButton and _skip_button != null and _skip_button.is_visible_in_tree() \
+			and _skip_button.get_global_rect().has_point((event as InputEventMouseButton).position):
+		return  # o clique é do botão "Avançar cutscene", não de "avançar a fala"
 	get_viewport().set_input_as_handled()
 	_advance()
 
@@ -239,7 +243,9 @@ func _apply_style() -> void:
 	_button.visible = is_box and show_advance_button
 	_backdrop_layer.visible = is_box and backdrop != null
 	_backdrop_rect.texture = backdrop
-	_skip_label.visible = allow_skip
+	_skip_label.visible = allow_skip and not Platform.is_mobile()
+	if _skip_button != null:
+		_skip_button.visible = allow_skip
 	_label.reparent(_box if is_box else _root, false)
 	if is_box:
 		_label.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -308,7 +314,7 @@ func _build_ui() -> void:
 	_root.theme = THEME
 	add_child(_root)
 
-	_box = Panel.new()  # Mesmas medidas do TextBox de cutscene1.tscn.
+	_box = Panel.new()  # Mesmas medidas da caixa da cutscene de abertura.
 	_box.anchor_top = 1.0
 	_box.anchor_right = 1.0
 	_box.anchor_bottom = 1.0
@@ -356,6 +362,7 @@ func _build_ui() -> void:
 	_skip_label.modulate = Color(1.0, 1.0, 1.0, 0.6)
 	_skip_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(_skip_label)
+	_skip_button = SkipCutsceneButton.attach(_root, _on_skip_held)  # só no celular
 
 	_skip_timer = Timer.new()
 	_skip_timer.one_shot = true

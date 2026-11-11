@@ -366,7 +366,7 @@ Veja `MOBILE.md` para gerar cada plataforma.
 
 ## 14. Tutorial interativo (cena `Scenes/Tutorial/tutorial.tscn`)
 
-Entra entre a cutscene e a Fase 1 (`CutsceneController.next_scene` -> tutorial -> `Fase1`). Substitui a tela estática de controles. Cada lição só avança com a ação do jogador (não há avanço por tempo); a abertura é uma cutscene curta.
+Entra entre a cutscene de abertura e a Fase 1 (`CutsceneTeleporte.next_scene` -> tutorial -> `Fase1`). Substitui a tela estática de controles. Cada lição só avança com a ação do jogador (não há avanço por tempo); a abertura é uma cutscene curta.
 
 | Parte | O que acontece | Onde |
 |---|---|---|
@@ -389,3 +389,30 @@ Entra entre a cutscene e a Fase 1 (`CutsceneController.next_scene` -> tutorial -
 godot --headless --path . res://qa/tutorial_test.tscn      # joga o tutorial inteiro com entradas simuladas
 godot --path . res://qa/tutorial_shot.tscn -- <pasta>      # capturas de tela (precisa de janela)
 ```
+
+
+---
+
+## 15. Ordem das cenas (versão integrada)
+
+| # | Cena | Arquivo | Próxima |
+|---|---|---|---|
+| 1 | Menu | `Scenes/Start/menu_start.tscn` | cutscene de abertura |
+| 2 | Cutscene de abertura (Londres -> cabine -> laboratório) | `Scenes/Cut2/cutscene2.tscn` | tutorial |
+| 3 | Tutorial interativo | `Scenes/Tutorial/tutorial.tscn` | Fase 1 |
+| 4 | Fase 1 (ferro-velho, versão do Returing-main) | `Scenes/Fase1/fase_1.tscn` | labirinto |
+| 5 | Labirinto e sala nova | `Scenes/Fase2/Labirinto.tscn`, `SalaNova.tscn` | defesa |
+| 6 | Defesa do portal | `Scenes/Defesa/Defesa.tscn` | quiz |
+| 7 | Quiz | `Scenes/Fase2/Fase2.tscn` | câmara |
+| 8 | Câmara | `Scenes/Fase5/Camara.tscn` | chefão |
+| 9 | Chefão + cutscene final | `Scenes/Fase3/fase_3.tscn` (`FinalCutscene`) | tela de resultado |
+
+A antiga cutscene de slides (`Scenes/Cut1`) foi substituída pela cutscene animada, que agora usa o tema do jogo
+(`Palette.load_theme()`: fonte VT323, caixa marrom, nome de quem fala em `Palette.ACCENT`). A cutscene do chefão roda
+em cima da Fase 3 quando ele morre; a tela de resultado só abre depois dela (`RunRecorder` espera `cutscene_finished`).
+
+### Fase 1: paredes de tijolo no centro
+As paredes de tijolo da Fase 1 antiga (`Brick-Wall_TileSet`, fonte 0 da `TileMapLayer3`) foram recolocadas no meio do ferro-velho
+da Fase 1 nova, deslocadas 17 colunas e 6 linhas (56 tiles). A colisão de cada tile de tijolo é o contorno exato dos pixels opacos
+do desenho (sem quadrados cheios nas pontas quebradas). Teste: cada pixel da parede colide e nenhum pixel vazio colide (só 7 pixels
+soltos de 1 px, ligados por diagonal, ficam sem colisão).

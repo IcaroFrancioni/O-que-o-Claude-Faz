@@ -111,6 +111,21 @@ func _input(event: InputEvent) -> void:
 	if event.is_action_pressed(&"ui_right") and not event.is_echo():
 		get_viewport().set_input_as_handled()
 		_select_exit()
+	elif Platform.is_mobile() and _is_tap_on_exit(event):  # Celular: toque na carta "Saída".
+		get_viewport().set_input_as_handled()
+		_select_exit()
+
+
+## True se o evento é um toque (ou clique do mouse na simulação) em cima da carta "Saída".
+func _is_tap_on_exit(event: InputEvent) -> bool:
+	var pos: Vector2 = Vector2.ZERO
+	if event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed:
+		pos = (event as InputEventScreenTouch).position
+	elif event is InputEventMouseButton and (event as InputEventMouseButton).pressed 			and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
+		pos = (event as InputEventMouseButton).position
+	else:
+		return false
+	return _cards[1].get_global_rect().grow(24.0).has_point(pos)
 
 
 ## Move o cursor para "Saída", dá o destaque dourado e avisa o tutorial.
@@ -230,6 +245,8 @@ func _build_instruction() -> Control:
 	var arrow_text: String = " (→)" if TutorialUi.FONT.has_char(0x2192) else ""  # A fonte pode não ter a seta.
 	var label: Label = Label.new()
 	label.text = "Aperte a seta para a DIREITA%s uma vez\npara selecionar 'Saída'" % arrow_text
+	if Platform.is_mobile():  # Celular não tem seta: toca na carta.
+		label.text = "Toque na carta 'Saída'\npara selecioná-la"
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.add_theme_font_override(&"font", TutorialUi.FONT)
 	label.add_theme_font_size_override(&"font_size", TutorialUi.FONT_PANEL)
@@ -239,6 +256,7 @@ func _build_instruction() -> Control:
 	_arrow_key = TutorialUi.KeyCap.new("", 62.0, 62.0)
 	_arrow_key.glyph = &"right"
 	_arrow_key.pulsing = true
+	_arrow_key.visible = not Platform.is_mobile()  # celular: sem tecla, só o toque na carta
 	line.add_child(_arrow_key)
 	return panel
 

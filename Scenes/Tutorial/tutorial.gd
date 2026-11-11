@@ -47,6 +47,10 @@ var _sword_queue: int = 0  # Acertos de espada ainda não classificados.
 var _droid_dead: bool = false  # O droide foi destruído.
 var _dust_clock: float = 0.0  # Intervalo da poeira dos passos.
 var _ghost_clock: float = 0.0  # Intervalo das imagens-fantasma.
+var _last_sword_button_msec: int = -100000  # Celular: quando o botão de espada foi tocado por último.
+var _melee_button_hits: int = 0  # Celular: espadadas que acertaram logo depois de tocar no botão de espada.
+var _weapon_swapped: bool = false  # Celular: o jogador trocou a arma na lição da troca.
+var _tilt_seen: Dictionary = {}  # Celular: direções de inclinação já feitas na lição do modo comando.
 
 @onready var player: Player = $Player
 @onready var arena: TutorialArena = $Arena
@@ -68,6 +72,10 @@ func _ready() -> void:
 	player.visible = false
 	player.set_physics_process(false)  # Sem entrada até o jogador aparecer.
 	hud.visible = false
+	if Platform.is_mobile():  # Celular: os controles só aparecem junto com o jogador.
+		MobileControls.reset_state()
+		MobileControls.suspended = true
+		MobileControls.button_pressed.connect(_on_mobile_button)
 	arena.brightness = 0.04
 	arena.light_turned_on.connect(_on_light_on)
 	ui.skip_requested.connect(skip)
@@ -82,6 +90,13 @@ func _ready() -> void:
 ## Devolve o tempo ao normal se a cena sair no meio de um hit stop.
 func _exit_tree() -> void:
 	Engine.time_scale = 1.0
+	if Platform.is_mobile():
+		MobileControls.suspended = false
+		MobileControls.set_highlight(&"")
+		MobileControls.reset_state()
+		var abilities: AbilityComponent = player.get_node_or_null(^"AbilityComponent") as AbilityComponent
+		if abilities != null:
+			abilities.practice = false
 
 
 ## Tremida da câmera e feedback do jogador (poeira, fantasmas do dash).
@@ -123,12 +138,20 @@ func _run() -> void:
 	await _lesson_shoot()
 	if _leaving:
 		return
+	if Platform.is_mobile():
+		await _lesson_weapon()
+		if _leaving:
+			return
 	await _lesson_sword()
 	if _leaving:
 		return
 	await _lesson_finish()
 	if _leaving:
 		return
+	if Platform.is_mobile():
+		await _lesson_command()
+		if _leaving:
+			return
 	await _lesson_upgrades()
 	if _leaving:
 		return
@@ -165,12 +188,18 @@ func _reveal_player() -> void:
 	player.modulate.a = 0.0
 	create_tween().tween_property(player, ^"modulate:a", 1.0, 0.45)
 	player.set_physics_process(true)
+	if Platform.is_mobile():
+		MobileControls.suspended = false
 
 
 ## Parte 2: andar com W A S D. Cada tecla recebe um check quando usada.
 func _lesson_move() -> void:
 	step = &"move"
-	ui.show_panel(&"wasd", "Aperte W A S D para andar")
+	if Platform.is_mobile():
+		MobileControls.set_highlight(MobileLayout.MOVE)
+		ui.show_panel(&"m_move", "Mova-se com o joystick", "", "Arraste o joystick esquerdo para os quatro lados.")
+	else:
+		ui.show_panel(&"wasd", "Aperte W A S D para andar")
 	var actions: Array[StringName] = [&"move_up", &"move_left", &"move_down", &"move_right"]
 	var used: int = 0
 	while not _leaving and used < actions.size():
@@ -187,6 +216,7 @@ func _lesson_move() -> void:
 		return
 	for action: StringName in actions:
 		ui.set_key_pressed(action, false)
+	_clear_highlight()
 	await ui.complete_panel()
 	if _leaving:
 		return
@@ -197,13 +227,18 @@ func _lesson_move() -> void:
 func _lesson_dash() -> void:
 	step = &"dash"
 	_dash_done = false
-	ui.show_panel(&"key", "Aperte ESPAÇO para dar um dash", "ESPAÇO", "Ele também deixa você invulnerável por um instante.")
+	if Platform.is_mobile():
+		MobileControls.set_highlight(MobileLayout.DASH)
+		ui.show_panel(&"m_dash", "Use o dash", "", "Toque no botão de dash. Ele deixa você invulnerável por um instante.")
+	else:
+		ui.show_panel(&"key", "Aperte ESPAÇO para dar um dash", "ESPAÇO", "Ele também deixa você invulnerável por um instante.")
 	while not _leaving and not _dash_done:
 		ui.set_key_pressed(&"key", Input.is_action_pressed(&"dash"))
 		await get_tree().process_frame
 	if _leaving:
 		return
 	ui.mark_key(&"key")
+	_clear_highlight()
 	await ui.complete_panel()
 	if _leaving:
 		return
@@ -243,12 +278,19 @@ func _lesson_droid_entry() -> void:
 func _lesson_shoot() -> void:
 	step = &"shoot"
 	_ranged_hits = 0
-	ui.show_panel(&"mouse_right", "Clique com o botão DIREITO para atirar", "",
-			"Segure para carregar e solte para disparar na direção do cursor.")
+	if Platform.is_mobile():
+		MobileControls.weapon_ranged = true  # O joystick direito atira.
+		MobileControls.set_highlight(MobileLayout.AIM)
+		ui.show_panel(&"m_shoot", "Use o ataque de tiro", "",
+				"Arraste o joystick direito para mirar e solte para atirar. Segurar carrega o tiro.")
+	else:
+		ui.show_panel(&"mouse_right", "Clique com o botão DIREITO para atirar", "",
+				"Segure para carregar e solte para disparar na direção do cursor.")
 	while not _leaving and _ranged_hits == 0:
 		await get_tree().process_frame
 	if _leaving:
 		return
+	_clear_highlight()
 	await ui.complete_panel()
 	if _leaving:
 		return
@@ -259,16 +301,105 @@ func _lesson_shoot() -> void:
 func _lesson_sword() -> void:
 	step = &"sword"
 	_melee_hits = 0
-	ui.show_panel(&"mouse_left", "Clique com o botão ESQUERDO para atacar com a espada", "",
-			"Chegue perto do droide e golpeie na direção do cursor.")
-	while not _leaving and _melee_hits == 0 and not _droid_dead:
+	if Platform.is_mobile():
+		MobileControls.set_highlight(MobileLayout.SWORD)
+		ui.show_panel(&"m_sword", "Use o ataque de espada", "",
+				"Chegue perto do droide e toque no botão de espada.")
+	else:
+		ui.show_panel(&"mouse_left", "Clique com o botão ESQUERDO para atacar com a espada", "",
+				"Chegue perto do droide e golpeie na direção do cursor.")
+	while not _leaving and not _droid_dead and (_melee_button_hits if Platform.is_mobile() else _melee_hits) == 0:
 		await get_tree().process_frame
 	if _leaving:
 		return
+	_clear_highlight()
 	await ui.complete_panel()
 	if _leaving:
 		return
 	await ui.say("Aço também fala. Termine o serviço.")
+
+
+## Celular: troca de arma. O joystick direito começa no tiro; o botão troca para a espada.
+func _lesson_weapon() -> void:
+	step = &"weapon"
+	_weapon_swapped = false
+	MobileControls.weapon_ranged = true
+	MobileControls.set_highlight(MobileLayout.WEAPON)
+	ui.show_panel(&"m_weapon", "Troque a arma", "", "Toque no botão de trocar arma: o joystick direito passa a golpear com a espada.")
+	var on_swap: Callable = func(ranged: bool) -> void:
+		if not ranged:
+			_weapon_swapped = true
+	MobileControls.weapon_swapped.connect(on_swap)
+	while not _leaving and not _weapon_swapped:
+		await get_tree().process_frame
+	MobileControls.weapon_swapped.disconnect(on_swap)
+	if _leaving:
+		return
+	ui.mark_key(&"key")
+	_clear_highlight()
+	await ui.complete_panel()
+	if _leaving:
+		return
+	await ui.say("Duas armas. Escolha com sabedoria.")
+
+
+## Celular: modo comando. O botão abre o quadro de comandos; as setas vêm da inclinação do celular
+## (ou do D-pad, se o aparelho não tiver acelerômetro). Cada uma das quatro direções recebe um check.
+func _lesson_command() -> void:
+	var abilities: AbilityComponent = player.get_node_or_null(^"AbilityComponent") as AbilityComponent
+	if abilities == null:
+		return
+	step = &"command"
+	abilities.practice = true  # abre sem habilidades e sem câmera lenta
+	MobileControls.set_highlight(MobileLayout.COMMAND)
+	ui.show_panel(&"m_command", "Abra o modo comando", "", "Toque no botão de modo comando.")
+	while not _leaving and not abilities.command_active:
+		await get_tree().process_frame
+	if _leaving:
+		return
+	_clear_highlight()
+	ui.mark_key(&"key")
+	await ui.complete_panel()
+	if _leaving:
+		return
+	step = &"tilt"
+	_tilt_seen.clear()
+	MobileControls.set_highlight(MobileLayout.BOARD)
+	ui.show_panel(&"m_tilt", "Incline o celular", "",
+			"Para cima, baixo, esquerda e direita. Volte ao centro entre uma seta e a próxima.")
+	var actions: Dictionary = {
+		AbilityData.Dir.UP: &"cmd_up", AbilityData.Dir.DOWN: &"cmd_down",
+		AbilityData.Dir.LEFT: &"cmd_left", AbilityData.Dir.RIGHT: &"cmd_right",
+	}
+	var on_arrow: Callable = func(dir: int) -> void:
+		var action: StringName = actions.get(dir, &"")
+		if action != &"" and ui.mark_key(action):
+			_tilt_seen[dir] = true
+	abilities.arrow_input.connect(on_arrow)
+	while not _leaving and _tilt_seen.size() < 4:
+		await get_tree().process_frame
+	abilities.arrow_input.disconnect(on_arrow)
+	if _leaving:
+		return
+	_clear_highlight()
+	await ui.complete_panel()
+	abilities.close_command_mode()
+	abilities.practice = false
+	if _leaving:
+		return
+	await ui.say("É assim que você usa as habilidades.")
+
+
+## Celular: guarda quando o botão de espada foi tocado (a lição da espada só conta golpes vindos dele).
+func _on_mobile_button(id: StringName) -> void:
+	if id == MobileLayout.SWORD:
+		_last_sword_button_msec = Time.get_ticks_msec()
+
+
+## Apaga o destaque do controle (só no celular).
+func _clear_highlight() -> void:
+	if Platform.is_mobile():
+		MobileControls.set_highlight(&"")
 
 
 ## Libera o golpe final e espera o droide ser destruído (por qualquer ataque).
@@ -290,6 +421,8 @@ func _lesson_finish() -> void:
 ## Parte 5: abre a aba de melhorias e espera o jogador selecionar "Saída" com a seta para a direita.
 func _lesson_upgrades() -> void:
 	step = &"upgrades"
+	if Platform.is_mobile():
+		MobileControls.suspended = true  # só o toque na carta "Saída"
 	player.set_physics_process(false)  # O jogador fica parado enquanto escolhe.
 	player.velocity = Vector2.ZERO
 	arena.close_hatch()
@@ -367,6 +500,8 @@ func _classify_hits() -> void:
 		return
 	var melee: int = mini(_sword_queue, _dealt_queue)
 	_melee_hits += melee
+	if melee > 0 and Time.get_ticks_msec() - _last_sword_button_msec < 1500:
+		_melee_button_hits += melee
 	_ranged_hits += _dealt_queue - melee
 	_dealt_queue = 0
 	_sword_queue = 0
