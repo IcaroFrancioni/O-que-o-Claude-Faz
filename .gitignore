@@ -1,3 +1,16 @@
 # Godot 4+ specific ignores
 .godot/
 /android/
+
+# Builds, assinatura e segredos (nunca commitar)
+build/
+*.apk
+*.aab
+*.keystore
+*.jks
+export_credentials.cfg
+.env
+*.idsig
+testes/saida/
+.import/
+*.translation

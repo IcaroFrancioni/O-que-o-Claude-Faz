@@ -1,12 +1,24 @@
 extends Node
-## Autoload Platform: decide se o jogo roda em modo celular (Android/iPhone) ou PC e concentra
-## todos os ajustes que dependem disso. No PC tudo fica com os valores originais do jogo.
+## Autoload Platform: ÚNICO lugar que decide em que plataforma o jogo roda e concentra os ajustes que
+## dependem disso. Nenhum outro script deve chamar `OS.has_feature("android")` e afins.
+##
+## - Computador (Windows, Linux, macOS): teclado e mouse, nada muda no jogo.
+## - Celular/tablet (Android, iOS, iPad): controles de toque (veja `MobileControls`).
 ##
 ## Para testar o modo celular no PC: abra o jogo com o argumento de usuário `--mobile`
-## (ex.: godot --path . -- --mobile). O mouse passa a simular o toque.
+## (ex.: godot --path . -- --mobile). O mouse passa a simular o toque. Notebook com tela de toque
+## continua em modo computador (só o argumento liga a simulação).
+##
+## Outros argumentos de usuário (só para testes/depuração):
+##   --platform=ios|android   plataforma simulada para o mapeamento do acelerômetro
+##   --landscape-reverse      simula a paisagem invertida
+##   --debug-tilt             liga o overlay de depuração do acelerômetro
 
-# Argumento de usuário que liga o modo celular no PC (godot --path . -- --mobile).
+## Argumento de usuário que liga o modo celular no PC (godot --path . -- --mobile).
 const SIM_ARG: String = "--mobile"
+const PLATFORM_ARG_PREFIX: String = "--platform="  # Prefixo do argumento que simula Android/iOS.
+const REVERSE_ARG: String = "--landscape-reverse"  # Simula a paisagem invertida.
+const DEBUG_TILT_ARG: String = "--debug-tilt"  # Liga o overlay do acelerômetro.
 
 # --- Ajustes do modo celular (mexa aqui para calibrar) ---
 
@@ -17,8 +29,14 @@ const MOBILE_CAMERA_ZOOM: float = 2.0
 ## Carga mínima de um tiro dado só com um toque rápido (0.0 a 1.0).
 const MOBILE_MIN_SHOT_CHARGE: float = 0.2
 
-## True no Android, no iPhone (ou navegador com tela de toque) e com `--mobile`.
-var is_mobile: bool = false
+## Nomes de plataforma devolvidos por `platform_name()`.
+const ANDROID: String = "android"
+const IOS: String = "ios"
+const WINDOWS: String = "windows"
+const LINUX: String = "linux"
+const MACOS: String = "macos"
+const WEB: String = "web"
+
 ## True só com `--mobile` no PC: o mouse faz o papel do dedo.
 var simulated: bool = false
 ## True quando o mouse deve funcionar como um dedo nos controles de toque (`--mobile` no PC e navegador).
@@ -31,13 +49,117 @@ var camera_zoom: float = 1.0
 var aim_assist: bool = false
 ## Carga mínima do tiro (0.0 no PC).
 var min_shot_charge: float = 0.0
+## Overlay de depuração do acelerômetro (flag `--debug-tilt`).
+var debug_tilt: bool = false
+## Paisagem invertida simulada (flag `--landscape-reverse`); em aparelho real vem do sistema.
+var simulated_reverse_landscape: bool = false
+
+var _mobile: bool = false  # True no Android, iOS (ou navegador com toque) e com `--mobile`.
+var _name_override: String = ""  # Plataforma forçada por `--platform=` ou pelos testes.
+
+
+## Roda antes de qualquer outro nó (mesmo antes do _ready) para que os outros scripts já leiam os valores certos.
+## Decide se é celular ou PC e preenche todos os ajustes que dependem disso.
+func _init() -> void:
+	var args: PackedStringArray = OS.get_cmdline_user_args()
+	simulated = args.has(SIM_ARG)  # O argumento `--mobile` liga a simulação no PC.
+	debug_tilt = args.has(DEBUG_TILT_ARG)
+	simulated_reverse_landscape = args.has(REVERSE_ARG)
+	for arg: String in args:  # `--platform=ios` escolhe a plataforma simulada.
+		if arg.begins_with(PLATFORM_ARG_PREFIX):
+			_name_override = arg.trim_prefix(PLATFORM_ARG_PREFIX).to_lower()
+	# Celular de verdade (Android/iOS) ou simulação.
+	_mobile = OS.has_feature("android") or OS.has_feature("ios") or simulated
+	if not _mobile and OS.has_feature("web"):  # Navegador: confere se o aparelho tem tela de toque.
+		# Tela de toque do Godot ou User-Agent de Android/iPhone/iPad.
+		_mobile = DisplayServer.is_touchscreen_available() or _web_is_touch_device()
+	# No navegador e na simulação o mouse faz o papel do dedo.
+	mouse_as_finger = simulated or (_mobile and OS.has_feature("web"))
+	_apply_mobile_tuning()
 
 
 ## Chamado quando o autoload entra na cena. No celular impede que a tela apague durante a partida.
 func _ready() -> void:
 	# Só mexe na tela em aparelhos de verdade, não na simulação do PC.
-	if is_mobile and OS.has_feature("mobile"):
+	if _mobile and not simulated and (OS.has_feature("android") or OS.has_feature("ios")):
 		DisplayServer.screen_set_keep_on(true)  # a tela não apaga no meio da partida
+
+
+## True em celular/tablet (Android, iOS, iPad) ou com `--mobile`.
+func is_mobile() -> bool:
+	return _mobile
+
+
+## True em Windows, Linux e macOS (tudo que não é celular).
+func is_desktop() -> bool:
+	return not _mobile
+
+
+## Nome da plataforma: "android", "ios", "windows", "linux", "macos" ou "web".
+func platform_name() -> String:
+	if not _name_override.is_empty():
+		return _name_override
+	if OS.has_feature("android"):
+		return ANDROID
+	if OS.has_feature("ios"):
+		return IOS
+	if OS.has_feature("web"):
+		return WEB
+	if OS.has_feature("windows"):
+		return WINDOWS
+	if OS.has_feature("macos"):
+		return MACOS
+	return LINUX
+
+
+## True no Android (ou simulando Android).
+func is_android() -> bool:
+	return platform_name() == ANDROID
+
+
+## True no iOS/iPadOS (ou simulando iOS).
+func is_ios() -> bool:
+	return platform_name() == IOS
+
+
+## Orientação de paisagem atual (valores de `TiltLogic.Orientation`): paisagem normal ou invertida.
+func landscape_orientation() -> int:
+	if simulated_reverse_landscape:
+		return TiltLogic.Orientation.LANDSCAPE_REVERSE
+	if not (OS.has_feature("android") or OS.has_feature("ios")):
+		return TiltLogic.Orientation.LANDSCAPE
+	var current: int = DisplayServer.screen_get_orientation()
+	if current == DisplayServer.SCREEN_REVERSE_LANDSCAPE:
+		return TiltLogic.Orientation.LANDSCAPE_REVERSE
+	return TiltLogic.Orientation.LANDSCAPE
+
+
+## Liga/desliga o modo celular em tempo de execução (só para os testes automáticos e o editor).
+## Os scripts que já leram o valor no `_ready` não são refeitos: troque antes de criar as cenas.
+func force_mobile(value: bool) -> void:
+	_mobile = value
+	simulated = value
+	mouse_as_finger = value
+	_apply_mobile_tuning()
+
+
+## Força o nome da plataforma (testes do mapeamento do acelerômetro). Vazio = detectar de novo.
+func force_platform_name(value: String) -> void:
+	_name_override = value
+
+
+## Aplica os ajustes de sprite, câmera e mira conforme o modo atual.
+func _apply_mobile_tuning() -> void:
+	if _mobile:  # Só no celular os ajustes mudam; no PC ficam os valores originais.
+		sprite_scale = MOBILE_SPRITE_SCALE  # Sprites maiores.
+		camera_zoom = MOBILE_CAMERA_ZOOM  # Câmera mais próxima.
+		aim_assist = true  # Liga a mira assistida do tiro.
+		min_shot_charge = MOBILE_MIN_SHOT_CHARGE  # Tiro mínimo para o toque rápido.
+	else:
+		sprite_scale = 1.0
+		camera_zoom = 1.0
+		aim_assist = false
+		min_shot_charge = 0.0
 
 
 ## Navegador de celular/tablet (inclui iPad, que o Safari anuncia como Mac com tela de toque).
@@ -46,20 +168,3 @@ func _web_is_touch_device() -> bool:
 		return false
 	var script: String = "(/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)"
 	return JavaScriptBridge.eval(script, true) == true
-
-
-## Roda antes de qualquer outro nó (mesmo antes do _ready) para que os outros scripts já leiam os valores certos.
-## Decide se é celular ou PC e preenche todos os ajustes que dependem disso.
-func _init() -> void:
-	simulated = OS.get_cmdline_user_args().has(SIM_ARG)  # O argumento `--mobile` liga a simulação no PC.
-	is_mobile = OS.has_feature("mobile") or simulated  # Celular de verdade (feature "mobile") ou simulação.
-	if not is_mobile and OS.has_feature("web"):  # Navegador: confere se o aparelho tem tela de toque.
-		# Tela de toque do Godot ou User-Agent de Android/iPhone/iPad.
-		is_mobile = DisplayServer.is_touchscreen_available() or _web_is_touch_device()
-	# No navegador e na simulação o mouse faz o papel do dedo.
-	mouse_as_finger = simulated or (is_mobile and OS.has_feature("web"))
-	if is_mobile:  # Só no celular os ajustes mudam; no PC ficam os valores originais.
-		sprite_scale = MOBILE_SPRITE_SCALE  # Sprites maiores.
-		camera_zoom = MOBILE_CAMERA_ZOOM  # Câmera mais próxima.
-		aim_assist = true  # Liga a mira assistida do tiro.
-		min_shot_charge = MOBILE_MIN_SHOT_CHARGE  # Tiro mínimo para o toque rápido.
