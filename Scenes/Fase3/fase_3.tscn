@@ -13,6 +13,7 @@
 [ext_resource type="PackedScene" uid="uid://rckqti68uekn" path="res://Scenes/Fase3/ArenaFloor.tscn" id="10_floor"]
 [ext_resource type="AudioStream" uid="uid://djr5jxpmtyve0" path="res://Sounds/Musics/BossMusic.wav" id="12_6quob"]
 [ext_resource type="Texture2D" path="res://assets/arena/arena_chefao.png" id="90_arena_chefao"]
+[ext_resource type="PackedScene" path="res://Scenes/Final/FinalCutscene.tscn" id="91_final"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_6quob"]
 texture = ExtResource("2_hwqjs")
@@ -1922,6 +1923,8 @@ boss_kind = &"guide"
 [node name="HUD" parent="." unique_id=1775704810 instance=ExtResource("3_hud")]
 
 [node name="Pause" parent="." unique_id=1594420123 instance=ExtResource("1_pause")]
+
+[node name="FinalCutscene" parent="." instance=ExtResource("91_final")]
 
 [node name="Bounds" type="StaticBody2D" parent="." unique_id=223415220]
 collision_mask = 0

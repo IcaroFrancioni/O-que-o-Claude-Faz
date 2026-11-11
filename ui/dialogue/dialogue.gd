@@ -45,6 +45,8 @@ const BOX_HINT_SIZE: int = 22
 @export_range(5.0, 120.0, 1.0) var chars_per_second: float = 38.0  # Velocidade da digitação.
 @export var speaker: String = ""  # Nome mostrado em dourado (só no BOX).
 @export var backdrop: Texture2D = null  # Ilustração de fundo (só no BOX).
+## Mostra o botão "Avançar" na caixa (só no BOX). Desligado, avança por tempo, clique ou Enter/Espaço/E.
+@export var show_advance_button: bool = true
 
 @export_group("Avanço")
 ## Liga: depois de digitar a fala, espera `hold_time` e passa para a próxima sozinho.
@@ -84,9 +86,10 @@ func _ready() -> void:
 
 ## Cria, adiciona em `parent` e toca as falas. Devolve o diálogo (use `await d.finished`).
 static func show_lines(parent: Node, new_lines: PackedStringArray, new_style: Style = Style.BOX,
-		new_speaker: String = "", new_backdrop: Texture2D = null) -> Dialogue:
+		new_speaker: String = "", new_backdrop: Texture2D = null, new_button: bool = true) -> Dialogue:
 	var dialogue: Dialogue = Dialogue.new()
 	dialogue.free_on_finish = true
+	dialogue.show_advance_button = new_button
 	dialogue.style = new_style
 	dialogue.speaker = new_speaker
 	dialogue.backdrop = new_backdrop
@@ -224,7 +227,7 @@ func _apply_style() -> void:
 	_box.visible = is_box
 	_name_label.visible = is_box and not speaker.is_empty()
 	_name_label.text = speaker
-	_button.visible = is_box
+	_button.visible = is_box and show_advance_button
 	_backdrop_layer.visible = is_box and backdrop != null
 	_backdrop_rect.texture = backdrop
 	_skip_label.visible = allow_skip
@@ -232,7 +235,7 @@ func _apply_style() -> void:
 	if is_box:
 		_label.set_anchors_preset(Control.PRESET_FULL_RECT)
 		_label.offset_left = 32.0
-		_label.offset_right = -160.0
+		_label.offset_right = -160.0 if show_advance_button else -32.0  # Sem botão, o texto usa a caixa toda.
 		_label.offset_top = 32.0 if not speaker.is_empty() else 16.0
 		_label.offset_bottom = -12.0
 		_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
