@@ -146,16 +146,17 @@ func _multitouch() -> void:
 	await frames(18)
 	check(mc.is_aiming(), "multitouch: mirando com o dedo 1")
 	check(p.global_position.x - start.x > 10.0, "multitouch: andando com o dedo 0 enquanto mira")
+	var fired: Array[Vector2] = []
+	var last_state: Array[int] = [p.state]
+	var on_state: Callable = func(new_state: int) -> void:
+		if last_state[0] == Player.State.ATTACK_RANGED and new_state != Player.State.DASH:
+			fired.append(p.get_shot_direction())
+		last_state[0] = new_state
+	p.estado_mudou.connect(on_state)
 	touch(1, aim_c + Vector2(0, -60), false)
-	var shot_up: bool = false
-	for i: int in 30:
-		await get_tree().physics_frame
-		for pr: PlayerProjectile in active_projectiles():
-			if pr.direction.y < -0.7:
-				shot_up = true
-		if shot_up:
-			break
-	check(shot_up, "multitouch: o tiro para cima saiu enquanto o dedo 0 segue andando")
+	await frames(25)
+	p.estado_mudou.disconnect(on_state)
+	check(fired.size() == 1 and fired[0].y < -0.7, "multitouch: o tiro para cima saiu enquanto o dedo 0 segue andando (%s)" % [fired])
 	check(Input.is_action_pressed(&"move_right"), "multitouch: o movimento continua apertado")
 	touch(0, move_c + Vector2(60, 0), false)
 	await frames(5)

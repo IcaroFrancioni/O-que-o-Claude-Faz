@@ -35,8 +35,7 @@ func rodar() -> void:
 	root.queue_free()
 	await frames(3)
 	# --- Cutscene 2 ---
-	var changes: Array[String] = []
-	EventBus.scene_change_requested.connect(func(path: String) -> void: changes.append(path))
+	var changes: Array[String] = block_scene_changes()
 	load_level("res://Scenes/Cut2/cutscene2.tscn")
 	await frames(30)
 	var cut_button: Button = level.find_child("BotaoAvancarCutscene", true, false) as Button

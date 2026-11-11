@@ -59,6 +59,7 @@ func rodar() -> void:
 	ti.cooldown = 0.25
 	Input.set_accelerometer(gravity())
 	await set_window()
+	var changes: Array[String] = block_scene_changes()
 	load_level("res://Scenes/Tutorial/tutorial.tscn")
 	tut = level as Tutorial
 	p = tut.player
@@ -218,6 +219,7 @@ func rodar() -> void:
 	await tap(4, exit_card.get_global_rect().get_center(), 3)
 	check(await _wait_step(&"farewell", 10.0) or tut.step == &"done" or tut.step == &"exit_selected", "tocar na carta 'Saída' avança")
 	check(await _wait_step(&"done", 20.0) and tut._leaving, "o tutorial termina (despedida e troca para a Fase 1)")
+	check(changes == ["res://Scenes/Fase1/fase_1.tscn"], "o tutorial pede a Fase 1 ao terminar (%s)" % [changes])
 	# Ordem dos passos vistos.
 	var expected: Array[StringName] = [&"move", &"dash", &"droid_entry", &"shoot", &"weapon", &"sword", &"finish", &"command", &"tilt", &"upgrades"]
 	var idx: int = 0

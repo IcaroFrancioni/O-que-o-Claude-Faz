@@ -19,6 +19,7 @@ func _wait_step(name: StringName, timeout: float = 40.0) -> bool:
 
 func rodar() -> void:
 	await set_window()
+	block_scene_changes()
 	check(not Platform.is_mobile(), "modo computador")
 	load_level("res://Scenes/Tutorial/tutorial.tscn")
 	tut = level as Tutorial

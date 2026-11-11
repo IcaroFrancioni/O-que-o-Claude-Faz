@@ -119,6 +119,16 @@ func unload_level() -> void:
 	level = null
 
 
+## Impede que o `Global` troque de cena de verdade (a carga em thread da cena seguinte, com o teste já saindo,
+## gera erros de saída que não são do jogo) e devolve a lista onde os pedidos de troca são anotados.
+func block_scene_changes() -> Array[String]:
+	var requests: Array[String] = []
+	if EventBus.scene_change_requested.is_connected(Global.change_scene):
+		EventBus.scene_change_requested.disconnect(Global.change_scene)
+	EventBus.scene_change_requested.connect(func(path: String) -> void: requests.append(path))
+	return requests
+
+
 ## Salva uma captura da janela em `res://testes/capturas/<nome>.png` (só funciona com renderizador, não em `--headless`).
 func snap(file_name: String) -> void:
 	if DisplayServer.get_name() == "headless":  # sem renderizador não há imagem (e frame_post_draw nunca dispara)
