@@ -69,6 +69,22 @@ func rodar() -> void:
 	var i_right: Vector3 = Vector3(-G * cos(deg_to_rad(25.0)), -G * sin(deg_to_rad(25.0)), 0.0)
 	check(TiltLogic.detect(i_right, i_cal, "ios", TiltLogic.Orientation.LANDSCAPE, 1.0, TiltLogic.Frame.RAW) == TiltLogic.DIR_RIGHT,
 			"iOS LandscapeRight bruto: y negativo = direita")
+	# Paisagem INVERTIDA, escrita à mão (Android ROTATION_270 / iOS LandscapeLeft): o topo natural aponta para a direita
+	# da tela; em pé o sensor Android lê (-g, 0, 0); inclinar para a direita da tela faz o eixo y do sensor ficar NEGATIVO.
+	var rev: int = TiltLogic.Orientation.LANDSCAPE_REVERSE
+	var ar_cal: Vector3 = TiltLogic.screen_unit(Vector3(-G, 0.0, 0.0), "android", rev, TiltLogic.Frame.RAW)
+	check(TiltLogic.detect(Vector3(-G * cos(deg_to_rad(25.0)), -G * sin(deg_to_rad(25.0)), 0.0), ar_cal, "android", rev, 1.0, TiltLogic.Frame.RAW) == TiltLogic.DIR_RIGHT,
+			"Android ROTATION_270 bruto: y negativo = direita")
+	check(TiltLogic.detect(Vector3(-G * cos(deg_to_rad(25.0)), G * sin(deg_to_rad(25.0)), 0.0), ar_cal, "android", rev, 1.0, TiltLogic.Frame.RAW) == TiltLogic.DIR_LEFT,
+			"Android ROTATION_270 bruto: y positivo = esquerda")
+	var ir_cal: Vector3 = TiltLogic.screen_unit(Vector3(G, 0.0, 0.0), "ios", rev, TiltLogic.Frame.RAW)
+	check(TiltLogic.detect(Vector3(G * cos(deg_to_rad(25.0)), G * sin(deg_to_rad(25.0)), 0.0), ir_cal, "ios", rev, 1.0, TiltLogic.Frame.RAW) == TiltLogic.DIR_RIGHT,
+			"iOS LandscapeLeft bruto: y positivo = direita")
+	# A paisagem (normal ou invertida) é detectada pelo sinal da gravidade natural em x.
+	check(TiltLogic.detect_orientation(Vector3(G, 0.0, 0.0), "android") == TiltLogic.Orientation.LANDSCAPE, "Android: sensor +x em pé = paisagem normal")
+	check(TiltLogic.detect_orientation(Vector3(-G, 0.0, 0.0), "android") == TiltLogic.Orientation.LANDSCAPE_REVERSE, "Android: sensor -x em pé = paisagem invertida")
+	check(TiltLogic.detect_orientation(Vector3(-G, 0.0, 0.0), "ios") == TiltLogic.Orientation.LANDSCAPE, "iOS: gravidade -x em pé = paisagem normal")
+	check(TiltLogic.detect_orientation(Vector3(G, 0.0, 0.0), "ios") == TiltLogic.Orientation.LANDSCAPE_REVERSE, "iOS: gravidade +x em pé = paisagem invertida")
 	# 4) Zona morta, sensibilidade, diagonal e sensor ausente.
 	var cal: Vector3 = TiltLogic.screen_unit(neutral, "android", TiltLogic.Orientation.LANDSCAPE)
 	check(TiltLogic.detect(_screen_gravity(5.0, 0.0), cal, "android", TiltLogic.Orientation.LANDSCAPE) == TiltLogic.DIR_NONE,

@@ -155,10 +155,72 @@ func rodar() -> void:
 	_ti.release(self)
 	check(not _ti.is_active(), "sem ninguém pedindo, o TiltInput fica parado")
 
+	# 6b) Zona morta no máximo (250%): a histerese continua valendo (segurar não repete a seta).
+	_fresh()
+	_ti.deadzone = 2.5
+	_ti.sensitivity = 1.0
+	Input.set_accelerometer(neutral)
+	_ti.acquire(self)
+	_hold(neutral, 0.4)
+	_hold(_gravity(TILT_DEG, 0.0), 3.0)
+	check(_got == [TiltLogic.DIR_RIGHT], "com zona morta de 250%%, segurar a inclinação 3 s ainda gera uma única seta (%s)" % [_got])
+	_ti.release(self)
+
+	# 6c) Calibração guardada: com `auto_calibrate` desligado, a pose do botão "Calibrar" é o neutro ao abrir o modo.
+	_fresh()
+	_ti.auto_calibrate = true
+	Input.set_accelerometer(neutral)
+	_ti.acquire(self)
+	_hold(neutral, 0.4)
+	var posed: Vector3 = _gravity(0.0, 14.0)
+	_hold(posed, 0.3)
+	_ti.calibrate_now()
+	_hold(posed, 0.3)
+	check(_ti.saved_neutral != Vector3.ZERO, "Calibrar guarda a pose neutra")
+	_ti.release(self)
+	_ti.auto_calibrate = false
+	_got.clear()
+	Input.set_accelerometer(posed)
+	_ti.acquire(self)
+	_hold(posed, 0.4)
+	check(_ti.current_tilt.length() < 0.05, "com auto_calibrate desligado, a pose guardada é o neutro ao abrir (%s)" % _ti.current_tilt)
+	_hold(_gravity(TILT_DEG, 14.0), 0.6)
+	check(_got == [TiltLogic.DIR_RIGHT], "e a inclinação parte dela (%s)" % [_got])
+	_ti.release(self)
+	_ti.auto_calibrate = true
+	_ti.saved_neutral = Vector3.ZERO
+
+	# 6d) Sistema bruto: a paisagem invertida é detectada pelo próprio vetor (sem depender do DisplayServer).
+	_fresh("android", -1, TiltLogic.Frame.RAW)
+	_ti.orientation_override = -1
+	var rev_neutral: Vector3 = _raw_for(neutral, "android", TiltLogic.Orientation.LANDSCAPE_REVERSE)
+	Input.set_accelerometer(rev_neutral)
+	_ti.acquire(self)
+	_hold(rev_neutral, 0.4)
+	_hold(_raw_for(_gravity(TILT_DEG, 0.0), "android", TiltLogic.Orientation.LANDSCAPE_REVERSE), 0.6)
+	check(_got == [TiltLogic.DIR_RIGHT], "bruto/invertida detectada pelo vetor: inclinar para a direita = direita (%s)" % [_got])
+	_ti.release(self)
+	_ti.orientation_override = TiltLogic.Orientation.LANDSCAPE
+
 	# 7) Simulação por teclas (PC com --mobile): sem acelerômetro e com `simulate_with_keys` o vetor sintético existe.
 	_fresh()
 	_ti.simulate_with_keys = true
 	Input.set_accelerometer(Vector3.ZERO)
 	check(_ti.read_raw().length() > 1.0, "simulação por teclas devolve um vetor de gravidade")
 	check(TiltLogic.detect_frame(_ti.read_raw()) == TiltLogic.Frame.SCREEN, "vetor simulado está no sistema de tela")
+	var rest: Vector3 = _ti.read_raw()
+	var cal: Vector3 = TiltLogic.screen_unit(rest, "android", TiltLogic.Orientation.LANDSCAPE)
+	var keys: Dictionary = {KEY_L: TiltLogic.DIR_RIGHT, KEY_J: TiltLogic.DIR_LEFT, KEY_I: TiltLogic.DIR_UP, KEY_K: TiltLogic.DIR_DOWN}
+	for key: int in keys:
+		var event := InputEventKey.new()
+		event.physical_keycode = key as Key
+		event.pressed = true
+		Input.parse_input_event(event)
+		Input.flush_buffered_events()
+		var dir: int = TiltLogic.detect(_ti.read_raw(), cal, "android", TiltLogic.Orientation.LANDSCAPE)
+		check(dir == int(keys[key]), "tecla %s inclina o celular simulado para a direção %d (%d)" % [OS.get_keycode_string(key as Key), keys[key], dir])
+		var release_event: InputEventKey = event.duplicate() as InputEventKey
+		release_event.pressed = false
+		Input.parse_input_event(release_event)
+		Input.flush_buffered_events()
 	Input.set_accelerometer(Vector3.ZERO)

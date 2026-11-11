@@ -46,6 +46,11 @@ func rodar() -> void:
 	await tap(0, calibrate.get_global_rect().get_center())
 	await real_seconds(0.6)
 	check(ti.current_tilt.length() < 0.05, "depois de calibrar, a pose atual é o neutro (%s)" % ti.current_tilt)
+	var auto_check: CheckButton = page.find_child("AutoCalibrate", true, false) as CheckButton
+	check(auto_check != null and auto_check.button_pressed, "opção 'Calibrar ao abrir o modo comando' ligada por padrão")
+	check(ti.saved_neutral != Vector3.ZERO, "o botão Calibrar guardou a pose neutra")
+	await tap(0, auto_check.get_global_rect().get_center())
+	check(not ti.auto_calibrate, "desligar a opção faz o modo comando usar a pose guardada")
 	# Voltar grava os ajustes.
 	var back: Button = page.find_child("TiltBackButton", true, false) as Button
 	await tap(0, back.get_global_rect().get_center())
@@ -53,6 +58,8 @@ func rodar() -> void:
 	check(not page.visible and not ti.is_active(), "voltar fecha a página e desliga o sensor")
 	var cfg: ConfigFile = ConfigFile.new()
 	check(cfg.load("user://teste_config.cfg") == OK, "as configurações foram gravadas em user://")
+	check(not bool(cfg.get_value("tilt", "auto_calibrate", true)) and cfg.get_value("tilt", "neutral", Vector3.ZERO) is Vector3 and cfg.get_value("tilt", "neutral", Vector3.ZERO) != Vector3.ZERO,
+			"a pose calibrada e a opção foram gravadas")
 	check(is_equal_approx(float(cfg.get_value("tilt", "sensitivity", 0.0)), 1.8) and is_equal_approx(float(cfg.get_value("tilt", "cooldown", 0.0)), 0.45),
 			"sensibilidade e intervalo gravados")
 	Input.set_accelerometer(Vector3.ZERO)

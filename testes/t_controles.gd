@@ -63,11 +63,25 @@ func _layout() -> void:
 	var board: Rect2 = mc.control_rect(MobileLayout.BOARD)
 	check(board.position.x / view.x >= 0.78 and board.end.x / view.x <= 1.001, "quadro de comandos começa em x >= 0,78 (%.3f)" % [board.position.x / view.x])
 	check(board.position.y / view.y <= 0.03 and board.end.y / view.y <= 0.58, "quadro de comandos vai até y <= 0,57 (%.3f)" % [board.end.y / view.y])
+	# (A PAUSA fica de propósito por cima do canto do quadro: o pedido a põe dentro da região azul e exige que fique
+	# por cima de qualquer painel; o quadro deixa esse canto livre.)
 	for id: StringName in [MobileLayout.MOVE, MobileLayout.AIM, MobileLayout.SWORD, MobileLayout.DASH, MobileLayout.WEAPON, MobileLayout.COMMAND]:
 		var r: float = mc.control_radius(id)
 		var c: Vector2 = mc.control_center(id)
 		var hit: bool = board.intersects(Rect2(c - Vector2(r, r), Vector2(r, r) * 2.0))
 		check(not hit, "o quadro de comandos não cobre %s" % id)
+	# Outras proporções de tela (tablet 4:3, celular comprido, 16:9): o quadro continua na região e não cobre os botões.
+	for other: Vector2 in [Vector2(1152.0, 864.0), Vector2(1152.0, 648.0), Vector2(1560.0, 648.0), Vector2(1400.0, 648.0)]:
+		var rect_other: Rect2 = mc.layout.get_rect(MobileLayout.BOARD, other)
+		check(rect_other.position.x / other.x >= 0.775 and rect_other.end.x <= other.x + 0.5 and rect_other.end.y / other.y <= 0.6,
+				"proporção %s: o quadro fica na região marcada (x %.3f, y fim %.3f)" % [other, rect_other.position.x / other.x, rect_other.end.y / other.y])
+		var overlaps_other: bool = false
+		for id: StringName in [MobileLayout.SWORD, MobileLayout.DASH, MobileLayout.WEAPON, MobileLayout.COMMAND, MobileLayout.AIM, MobileLayout.MOVE]:
+			var c2: Vector2 = mc.layout.get_center(id, other)
+			var r2: float = mc.layout.get_radius(id)
+			if rect_other.intersects(Rect2(c2 - Vector2(r2, r2), Vector2(r2, r2) * 2.0)):
+				overlaps_other = true
+		check(not overlaps_other, "proporção %s: o quadro não cobre joysticks nem botões" % other)
 	var status: Rect2 = mc.control_rect(MobileLayout.STATUS)
 	check(not board.intersects(status), "o quadro de comandos não cobre as barras de status")
 	# As barras de status estão no canto superior esquerdo.

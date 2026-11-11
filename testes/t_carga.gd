@@ -41,7 +41,7 @@ func _check_paths() -> void:
 	var regex_all: RegEx = RegEx.new()
 	regex_all.compile(r"\"(res://[^\"]+\.[A-Za-z0-9]+)\"")
 	var absolute: RegEx = RegEx.new()
-	absolute.compile(r"[\"'][A-Za-z]:[\/]")
+	absolute.compile(r"[\"'](?:[A-Za-z]:[\\/]|/home/|/Users/)")
 	var cache: Dictionary = {}
 	var wrong: Array[String] = []
 	var absolutes: Array[String] = []

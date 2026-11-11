@@ -14,7 +14,7 @@ func rodar() -> void:
 	var dialogue: Dialogue = Dialogue.show_lines(root, PackedStringArray(["Primeira fala da cutscene.", "Segunda fala."]), Dialogue.Style.BOX, "Sistema")
 	dialogue.finished.connect(func() -> void: finished.append(true))
 	dialogue.skipped.connect(func() -> void: skipped.append(true))
-	await frames(10)
+	await real_seconds(1.6)  # bem depois da tolerância de 180 ms do diálogo: o clique NÃO pode ser engolido por ele
 	var button: SkipCutsceneButton = dialogue._skip_button
 	check(button != null, "o diálogo tem o botão 'Avançar cutscene'")
 	if button != null:
@@ -37,7 +37,7 @@ func rodar() -> void:
 	# --- Cutscene 2 ---
 	var changes: Array[String] = block_scene_changes()
 	load_level("res://Scenes/Cut2/cutscene2.tscn")
-	await frames(30)
+	await real_seconds(2.0)
 	var cut_button: Button = level.find_child("BotaoAvancarCutscene", true, false) as Button
 	check(cut_button != null and cut_button.text == "Avançar cutscene", "a cutscene 2 tem o botão 'Avançar cutscene'")
 	var hint: Node = level.find_child("DicaPular", true, false)

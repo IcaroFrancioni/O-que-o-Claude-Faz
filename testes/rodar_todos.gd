@@ -26,6 +26,7 @@ const SUITE: Array = [
 	["t_config.gd", ["--mobile", "--mobile-config=user://teste_config.cfg"], "configurações do acelerômetro e Calibrar"],
 	["t_cutscene.gd", ["--mobile"], "botão 'Avançar cutscene'"],
 	["t_tutorial_mobile.gd", ["--mobile"], "tutorial mobile completo (6 passos, inclinação)"],
+	["t_skip_mobile.gd", ["--mobile"], "'Pular tutorial' responde ao toque"],
 ]
 
 ## Linhas de saída que o Godot imprime ao fechar e que NÃO são do jogo (vazamentos de saída do áudio do menu

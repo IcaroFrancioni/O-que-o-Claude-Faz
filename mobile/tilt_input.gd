@@ -37,6 +37,11 @@ var simulate_with_keys: bool = false
 var platform_override: String = ""
 var orientation_override: int = -1
 
+## Calibrar ao abrir o modo comando (padrão). Desligado, vale a pose guardada pelo botão "Calibrar".
+var auto_calibrate: bool = true
+## Pose neutra guardada pelo botão "Calibrar" (vetor unitário em tela; ZERO = nunca calibrado).
+var saved_neutral: Vector3 = Vector3.ZERO
+
 var sensor_available: bool = false  # Já veio alguma leitura diferente de zero.
 var sensor_missing: bool = false  # Ficou `missing_after` segundos só com zero.
 var current_tilt: Vector2 = Vector2.ZERO  # Inclinação suavizada e calibrada (para os indicadores).
@@ -49,6 +54,8 @@ var _holders: Dictionary = {}  # Quem pediu a leitura (id -> true).
 var _smooth: Vector3 = Vector3.ZERO  # Vetor unitário em tela suavizado.
 var _has_smooth: bool = false
 var _calibrate_pending: bool = false
+var _store_neutral: bool = false  # guardar a próxima calibração em `saved_neutral`
+var _use_saved: bool = false  # usar `saved_neutral` em vez de calibrar ao abrir
 var _latched: bool = false  # Já disparou e ainda não voltou ao neutro.
 var _cooldown_left: float = 0.0
 var _zero_time: float = 0.0
@@ -91,6 +98,7 @@ func is_active() -> bool:
 ## Calibra a posição neutra com a pose atual do aparelho (botão "Calibrar").
 func calibrate_now() -> void:
 	_calibrate_pending = true
+	_store_neutral = true  # a pose calibrada também fica guardada (vale quando `auto_calibrate` está desligado)
 
 
 ## Atualiza a posição neutra imediatamente com o vetor suavizado atual (para os testes, sem esperar quadro).
@@ -106,6 +114,8 @@ func save_settings() -> void:
 	MobileSettings.set_value(MobileSettings.SECTION_TILT, "sensitivity", sensitivity)
 	MobileSettings.set_value(MobileSettings.SECTION_TILT, "deadzone", deadzone)
 	MobileSettings.set_value(MobileSettings.SECTION_TILT, "cooldown", cooldown)
+	MobileSettings.set_value(MobileSettings.SECTION_TILT, "auto_calibrate", auto_calibrate)
+	MobileSettings.set_value(MobileSettings.SECTION_TILT, "neutral", saved_neutral)
 	MobileSettings.save()
 
 
@@ -114,12 +124,16 @@ func _load_settings() -> void:
 	sensitivity = clampf(float(MobileSettings.get_value(MobileSettings.SECTION_TILT, "sensitivity", sensitivity)), 0.5, 2.5)
 	deadzone = clampf(float(MobileSettings.get_value(MobileSettings.SECTION_TILT, "deadzone", deadzone)), 0.5, 2.5)
 	cooldown = clampf(float(MobileSettings.get_value(MobileSettings.SECTION_TILT, "cooldown", cooldown)), 0.05, 1.0)
+	auto_calibrate = bool(MobileSettings.get_value(MobileSettings.SECTION_TILT, "auto_calibrate", true))
+	var neutral: Variant = MobileSettings.get_value(MobileSettings.SECTION_TILT, "neutral", Vector3.ZERO)
+	saved_neutral = neutral as Vector3 if neutral is Vector3 else Vector3.ZERO
 
 
 ## Zera o estado e liga o processamento.
 func _start() -> void:
 	_has_smooth = false
 	_calibrate_pending = true
+	_use_saved = not auto_calibrate and saved_neutral != Vector3.ZERO
 	_latched = false
 	_cooldown_left = 0.0
 	_zero_time = 0.0
@@ -142,7 +156,12 @@ func _platform() -> String:
 
 ## Orientação de paisagem usada no mapeamento.
 func _orientation() -> int:
-	return orientation_override if orientation_override >= 0 else Platform.landscape_orientation()
+	if orientation_override >= 0:
+		return orientation_override
+	if resolved_frame == TiltLogic.Frame.RAW and not raw.is_zero_approx():
+		# Sistema bruto: a paisagem (normal ou invertida) sai do sinal da gravidade no eixo x natural.
+		return TiltLogic.detect_orientation(raw, _platform())
+	return Platform.landscape_orientation()
 
 
 ## Leitura bruta: o acelerômetro real ou, no PC com `--mobile`, o vetor sintético das teclas I/J/K/L.
@@ -191,9 +210,9 @@ func step(dt: float) -> void:
 		sensor_available = true
 		sensor_missing = false
 		sensor_state_changed.emit(true)
-	var frame_now: int = frame
-	if frame_now == TiltLogic.Frame.AUTO:
-		frame_now = resolved_frame
+	if frame != TiltLogic.Frame.AUTO:
+		resolved_frame = frame  # sistema fixo: a orientação detectada também depende dele
+	var frame_now: int = resolved_frame
 	var sample: Vector3 = TiltLogic.screen_unit(raw, _platform(), _orientation(), frame_now)
 	if not _has_smooth:
 		_smooth = sample
@@ -207,7 +226,12 @@ func step(dt: float) -> void:
 			_smooth = sample
 		else:
 			resolved_frame = frame
-		calibration = _smooth
+		calibration = saved_neutral if _use_saved else _smooth
+		if _store_neutral:
+			saved_neutral = calibration
+			_store_neutral = false
+			save_settings()
+		_use_saved = false
 		_calibrate_pending = false
 		_latched = false
 	_cooldown_left = maxf(_cooldown_left - dt, 0.0)
@@ -218,7 +242,8 @@ func step(dt: float) -> void:
 	if _latched:
 		# Histerese: só rearma quando volta para dentro da zona morta.
 		var back: float = maxf(absf(current_tilt.x), absf(current_tilt.y)) * sensitivity
-		if back < TiltLogic.BASE_DEADZONE * deadzone:
+		# O limite de rearme nunca passa de 80% do limiar de disparo (senão a histerese some com zona morta alta).
+		if back < minf(TiltLogic.BASE_DEADZONE * deadzone, TiltLogic.BASE_THRESHOLD * 0.8):
 			_latched = false
 			last_direction = TiltLogic.DIR_NONE
 		return

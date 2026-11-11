@@ -141,6 +141,15 @@ func _build_tilt_page() -> void:
 			func(v: float) -> void: TiltInput.deadzone = v / 100.0)
 	_add_tilt_slider("Intervalo entre setas", 50.0, 1000.0, 10.0, TiltInput.cooldown * 1000.0, "%d ms",
 			func(v: float) -> void: TiltInput.cooldown = v / 1000.0)
+	var auto_check: CheckButton = CheckButton.new()
+	auto_check.name = "AutoCalibrate"
+	auto_check.text = "Calibrar ao abrir o modo comando"
+	auto_check.button_pressed = TiltInput.auto_calibrate
+	auto_check.focus_mode = Control.FOCUS_NONE
+	auto_check.toggled.connect(func(on: bool) -> void:
+		TiltInput.auto_calibrate = on
+		TiltInput.save_settings())
+	_tilt_page.add_child(auto_check)
 	var row: HBoxContainer = HBoxContainer.new()
 	row.add_theme_constant_override(&"separation", Palette.UNIT * 2)
 	_tilt_page.add_child(row)

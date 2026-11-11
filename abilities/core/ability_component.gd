@@ -175,7 +175,7 @@ func toggle_command_mode() -> void:
 
 ## Celular: digita uma seta (valor de `AbilityData.Dir`) no modo comando.
 func press_arrow(dir: int) -> void:
-	if command_active:
+	if command_active and not get_tree().paused:
 		_on_arrow(dir)
 
 

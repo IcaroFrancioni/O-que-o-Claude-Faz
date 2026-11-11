@@ -106,14 +106,23 @@ func get_scale(id: StringName) -> float:
 	return _scale[id]
 
 
-## Tamanho em px com a escala atual.
-func get_size(id: StringName) -> Vector2:
-	return (DEFS[id]["size"] as Vector2) * float(_scale[id])
+## Escala efetiva: a do layout, e o quadro de comandos ainda encolhe em telas mais estreitas que o print (ex.: tablet 4:3)
+## para continuar dentro da região x >= 0,78 da largura.
+func effective_scale(id: StringName, view: Vector2 = REF_VIEW) -> float:
+	var s: float = float(_scale[id])
+	if id == BOARD:
+		s *= minf(1.0, view.x / REF_VIEW.x)
+	return s
+
+
+## Tamanho em px com a escala atual (e a proporção da tela `view`).
+func get_size(id: StringName, view: Vector2 = REF_VIEW) -> Vector2:
+	return (DEFS[id]["size"] as Vector2) * effective_scale(id, view)
 
 
 ## Raio (px) dos controles redondos.
 func get_radius(id: StringName) -> float:
-	return get_size(id).x * 0.5
+	return get_size(id).x * 0.5  # só controles redondos (a escala deles não depende da proporção)
 
 
 func is_circle(id: StringName) -> bool:
@@ -123,18 +132,18 @@ func is_circle(id: StringName) -> bool:
 ## Centro em px da tela lógica `view`, dentro da área segura `margins` (esquerda, topo, direita, base).
 func get_center(id: StringName, view: Vector2, margins: Vector4 = Vector4.ZERO) -> Vector2:
 	var raw: Vector2 = (_pos[id] as Vector2) * view
-	return _clamp_center(raw, get_size(id), view, margins)
+	return _clamp_center(raw, get_size(id, view), view, margins)
 
 
 ## Retângulo em px do controle.
 func get_rect(id: StringName, view: Vector2, margins: Vector4 = Vector4.ZERO) -> Rect2:
-	var size: Vector2 = get_size(id)
+	var size: Vector2 = get_size(id, view)
 	return Rect2(get_center(id, view, margins) - size * 0.5, size)
 
 
 ## Move o controle para `center_px` (limitado para não sair da tela).
 func set_center(id: StringName, center_px: Vector2, view: Vector2, margins: Vector4 = Vector4.ZERO) -> void:
-	var c: Vector2 = _clamp_center(center_px, get_size(id), view, margins)
+	var c: Vector2 = _clamp_center(center_px, get_size(id, view), view, margins)
 	_pos[id] = Vector2(c.x / view.x, c.y / view.y)
 
 

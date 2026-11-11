@@ -76,6 +76,13 @@ static func detect_frame(accel: Vector3) -> int:
 	return Frame.SCREEN
 
 
+## Paisagem (normal ou invertida) a partir do vetor BRUTO parado: em paisagem a gravidade natural fica toda no eixo x.
+## Com o topo natural à esquerda (`LANDSCAPE`) a gravidade natural tem x < 0; com o topo à direita, x > 0.
+static func detect_orientation(raw: Vector3, platform: String) -> int:
+	var gravity_x: float = -raw.x if platform == "android" else raw.x
+	return Orientation.LANDSCAPE if gravity_x <= 0.0 else Orientation.LANDSCAPE_REVERSE
+
+
 ## Vetor unitário da gravidade em tela (ZERO se o sensor não existir).
 static func screen_unit(accel: Vector3, platform: String, orientation: int, frame: int = Frame.SCREEN) -> Vector3:
 	return _unit(to_screen_gravity(accel, platform, orientation, frame))

@@ -137,6 +137,14 @@ func rodar() -> void:
 		await real_seconds(0.15)
 	check(activated == [&"golpe_amplo"], "o D-pad (fallback) também digita a sequência e dispara a habilidade (%s)" % [activated])
 
+	# Mais habilidades do que cabem: o quadro mostra 3 linhas e "+N" (nunca vaza para cima dos botões).
+	abilities.learn(load("res://abilities/data/cura.tres") as AbilityData)
+	abilities.learn(load("res://abilities/data/pulso_emp.tres") as AbilityData)
+	await frames(5)
+	check(board._rows.size() == CommandBoard.MAX_ROWS and board._overflow == 2, "com 5 habilidades o quadro mostra %d linhas e +%d" % [board._rows.size(), board._overflow])
+	var rows_bottom: float = CommandBoard.ROWS_TOP + CommandBoard.ROW_HEIGHT * float(CommandBoard.MAX_ROWS)
+	check(rows_bottom <= CommandBoard.BASE_SIZE.y, "as linhas terminam dentro do quadro")
+
 	# Fechar: tocar no botão de novo.
 	await tap(0, mc.control_center(MobileLayout.COMMAND))
 	await real_seconds(0.3)

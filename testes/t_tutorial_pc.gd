@@ -51,5 +51,5 @@ func rodar() -> void:
 	check(await _wait_step(&"shoot", 40.0), "o droide entra e o passo de tiro (mouse direito) começa")
 	await real_seconds(0.8)
 	check(tut.ui.current_icon() == null and tut.ui.has_panel(), "passo 3: painel do mouse (sem ilustração de celular)")
-	check(not _seen.has(&"weapon") and not _seen.has(&"command"), "o computador não tem as lições de troca de arma nem de modo comando")
+	check(not _seen.has(&"weapon") and not _seen.has(&"command"), "até o passo de tiro o computador segue só as lições originais (as do celular ficam atrás de Platform.is_mobile())")
 	tut.skip()

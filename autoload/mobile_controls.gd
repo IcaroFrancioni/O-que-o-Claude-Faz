@@ -71,6 +71,7 @@ var _terminals: Array[Node] = []  # Terminais da Fase 2 (para o botão E).
 var _hud: GameHUD = null  # HUD da fase (as barras de status seguem o layout).
 var _bar_native: Dictionary = {}  # Barra -> tamanho original.
 var _hl_clock: float = 0.0  # Relógio do pisca de destaque.
+var _safe_clock: float = 0.0  # Relógio da conferência da área segura.
 
 var _fingers: Dictionary[int, StringName] = { }  # dedo -> papel (id do controle)
 var _move_finger: int = -1
@@ -176,6 +177,11 @@ func control_rect(id: StringName) -> Rect2:
 	return layout.get_rect(id, _view, _margins)
 
 
+## Escala efetiva (layout x ajuste à proporção da tela) do controle `id`.
+func control_scale(id: StringName) -> float:
+	return layout.effective_scale(id, _view)
+
+
 ## Tamanho lógico da tela e margens seguras (o editor e o quadro usam).
 func view_size() -> Vector2:
 	return _view
@@ -262,7 +268,7 @@ func _on_command_mode_changed(active: bool) -> void:
 
 ## O acelerômetro detectou uma seta: vira uma seta digitada no modo comando.
 func _on_tilt_arrow(dir: int) -> void:
-	if is_instance_valid(_abilities) and _abilities.command_active:
+	if is_instance_valid(_abilities) and _abilities.command_active and not get_tree().paused:
 		_abilities.press_arrow(dir)
 
 
@@ -393,7 +399,7 @@ func dpad_wanted() -> bool:
 func dpad_buttons() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	var rect: Rect2 = control_rect(MobileLayout.BOARD)
-	var s: float = layout.get_scale(MobileLayout.BOARD)
+	var s: float = layout.effective_scale(MobileLayout.BOARD, _view)
 	var origin: Vector2 = rect.position + CommandBoard.DPAD_CENTER * s
 	var cell: float = CommandBoard.DPAD_CELL * s
 	var offsets: Dictionary = {
@@ -425,7 +431,8 @@ func _input(event: InputEvent) -> void:
 		# O toque também gera um clique de mouse "emulado". Durante o jogo ele não pode vazar para o mundo.
 		if event.device == InputEvent.DEVICE_ID_EMULATION:
 			var pos: Vector2 = (event as InputEventMouse).position
-			if _shown or (_pause_shown and _hits_pause(pos)):
+			# Botões da interface (ex.: "Pular tutorial") precisam do clique emulado; o mundo não.
+			if (_shown or (_pause_shown and _hits_pause(pos))) and not _gui_button_at(pos):
 				get_viewport().set_input_as_handled()
 		elif Platform.mouse_as_finger:  # No PC com `--mobile`, o mouse vira um dedo.
 			_simulate_with_mouse(event)
@@ -441,6 +448,19 @@ func _simulate_with_mouse(event: InputEvent) -> void:
 			_release(SIM_FINGER)
 	elif event is InputEventMouseMotion and _fingers.has(SIM_FINGER):
 		_drag(SIM_FINGER, (event as InputEventMouseMotion).position)
+
+
+## Há um botão de interface (visível, ativo, fora dos controles de toque) embaixo de `pos`?
+func _gui_button_at(pos: Vector2) -> bool:
+	if _hits_pause(pos):
+		return false
+	for node: Node in get_tree().root.find_children("*", "BaseButton", true, false):
+		var button: BaseButton = node as BaseButton
+		if button.disabled or not button.is_visible_in_tree() or button.mouse_filter == Control.MOUSE_FILTER_IGNORE:
+			continue
+		if button.get_global_rect().has_point(pos):
+			return true
+	return false
 
 
 func _hits_pause(pos: Vector2) -> bool:
@@ -613,6 +633,14 @@ func _physics_process(_delta: float) -> void:
 
 func _process(delta: float) -> void:
 	_hl_clock += delta
+	if Platform.is_real_device():  # girar 180 graus troca o lado do notch sem mudar o tamanho da janela
+		_safe_clock += delta
+		if _safe_clock >= 0.5:
+			_safe_clock = 0.0
+			var margins: Vector4 = _compute_safe_margins()
+			if not margins.is_equal_approx(_margins):
+				_update_layout()
+				refresh_layout()
 	if _shown:
 		_canvas.queue_redraw()
 	if _pause_shown:

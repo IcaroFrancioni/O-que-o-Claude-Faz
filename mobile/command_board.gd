@@ -21,6 +21,7 @@ const SLOT_SIZE: float = 30.0  # Tamanho de cada seta digitada.
 const SLOTS: int = 6  # Máximo de setas de uma sequência.
 const ROWS_TOP: float = 248.0  # Onde começa a lista de habilidades.
 const ROW_HEIGHT: float = 34.0
+const MAX_ROWS: int = 3  # linhas que cabem no quadro (o resto vira "+N")
 const FLASH_TIME: float = 0.4  # Quanto tempo a seta detectada fica acesa.
 const FONT_TITLE: int = 20
 const FONT_BODY: int = 16
@@ -38,6 +39,7 @@ var _flash_left: float = 0.0
 var _rows: Dictionary = {}  # id -> {"row": Control, "arrows": ArrowSequenceView}
 var _rows_box: Control = null
 var _notice: String = ""  # Aviso (ex.: sem habilidades).
+var _overflow: int = 0  # Habilidades que não cabem nas linhas.
 
 
 func _ready() -> void:
@@ -90,7 +92,7 @@ func apply_layout() -> void:
 		return
 	var rect: Rect2 = MobileControls.control_rect(MobileLayout.BOARD)
 	position = rect.position
-	scale = Vector2.ONE * MobileControls.layout.get_scale(MobileLayout.BOARD)
+	scale = Vector2.ONE * MobileControls.control_scale(MobileLayout.BOARD)
 	size = BASE_SIZE
 
 
@@ -155,7 +157,8 @@ func _rebuild() -> void:
 	if _abilities == null:
 		return
 	var y: float = ROWS_TOP
-	for data: AbilityData in _abilities.abilities:
+	_overflow = maxi(_abilities.abilities.size() - MAX_ROWS, 0)
+	for data: AbilityData in _abilities.abilities.slice(0, MAX_ROWS):
 		var row: Control = Control.new()
 		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		row.position = Vector2(14.0, y)
@@ -200,6 +203,8 @@ func _draw() -> void:
 		_draw_dpad(font)
 	else:
 		_draw_tilt(font)
+	if _overflow > 0:
+		draw_string(font, Vector2(16.0, BASE_SIZE.y - 6.0), "+%d habilidade(s)" % _overflow, HORIZONTAL_ALIGNMENT_LEFT, 200.0, 13, COLOR_MUTED)
 	if _abilities != null and _abilities.abilities.is_empty():
 		var text: String = _notice if _notice != "" else ("Treino: sem habilidades" if _abilities.practice else "Sem habilidades ainda")
 		draw_string(font, Vector2(16.0, ROWS_TOP + 22.0), text, HORIZONTAL_ALIGNMENT_LEFT, BASE_SIZE.x - 32.0, FONT_BODY, COLOR_MUTED)

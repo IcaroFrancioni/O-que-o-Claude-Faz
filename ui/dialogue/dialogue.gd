@@ -149,6 +149,9 @@ func _input(event: InputEvent) -> void:
 		pressed = mouse.pressed and mouse.button_index == MOUSE_BUTTON_LEFT
 	if not pressed or Time.get_ticks_msec() - _line_start_msec < INPUT_GRACE_MSEC:
 		return
+	if event is InputEventMouseButton and _skip_button != null and _skip_button.is_visible_in_tree() \
+			and _skip_button.get_global_rect().has_point((event as InputEventMouseButton).position):
+		return  # o clique é do botão "Avançar cutscene", não de "avançar a fala"
 	get_viewport().set_input_as_handled()
 	_advance()
 

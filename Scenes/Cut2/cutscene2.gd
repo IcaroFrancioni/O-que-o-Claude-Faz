@@ -133,6 +133,7 @@ var _speaker: Label
 var _text: RichTextLabel
 var _prompt: Control
 var _skip_label: Label
+var _skip_button_node: Control = null  # Celular: botão "Avançar cutscene".
 var _skip_bar: ColorRect
 var _flash: ColorRect
 var _fade: ColorRect
@@ -198,6 +199,9 @@ func _input(event: InputEvent) -> void:
 		pressed = mouse.pressed and mouse.button_index == MOUSE_BUTTON_LEFT
 	elif event.is_action_pressed("ui_accept") and not event.is_echo():
 		pressed = true
+	if pressed and mouse and _skip_button_node != null and is_instance_valid(_skip_button_node) \
+			and _skip_button_node.get_global_rect().has_point(mouse.position):
+		return  # o clique é do botão "Avançar cutscene"
 	if pressed:
 		get_viewport().set_input_as_handled()
 		_advance()
@@ -715,7 +719,7 @@ func _build_ui() -> void:
 	_set_anchors(_skip_label, Vector4(1, 0, 1, 0), Vector4(-300, 8, -20, 36))
 	if Platform.is_mobile():  # Celular: botão "Avançar cutscene" no lugar do "segure ESC".
 		_skip_label.visible = false
-		SkipCutsceneButton.attach(_ui, func() -> void: _finish(true))
+		_skip_button_node = SkipCutsceneButton.attach(_ui, func() -> void: _finish(true))
 
 	_skip_bar = _new_rect("BarraPular", Color(1, 1, 1, 0.85))
 	_skip_bar.size = Vector2(0.0, 3.0)

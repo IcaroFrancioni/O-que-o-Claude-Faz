@@ -36,8 +36,8 @@ func rodar() -> void:
 	check(editor.is_open and mc.edit_mode, "o editor de HUD abriu e os controles de jogo pararam")
 	var instruction: Label = editor.get_node("Root/Instrucao") as Label
 	check(instruction.text == "Amplie e arraste os controles para adicionar do seu jeito.", "texto de instrução na fonte do jogo")
-	check(instruction.get_theme_font(&"font") != null and not instruction.get_theme_font(&"font").resource_path.is_empty()
-			or instruction.theme != null or editor.get_node("Root").theme != null, "a instrução usa o tema (fonte) do jogo")
+	check(editor.get_node("Root").theme == Palette.load_theme(), "a tela usa o tema do jogo (mesma fonte e caixas dos menus)")
+	check(instruction.get_theme_font(&"font") == Palette.load_theme().get_default_font(), "a instrução usa a fonte padrão do jogo")
 	await snap("30_editor_hud")
 	var view: Vector2 = mc.view_size()
 	var margins: Vector4 = mc.safe_margins()

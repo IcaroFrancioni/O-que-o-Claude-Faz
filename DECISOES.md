@@ -50,3 +50,13 @@ Formato: **decisão** — motivo — alternativa descartada.
 33. **Uma flag de ruído conhecido** (vazamentos de saída do áudio do menu e do renderizador dummy) é ignorada pelo runner; qualquer outro `ERROR:`/`WARNING:`/`SCRIPT ERROR` reprova o teste.
 34. **Os testes antigos de celular (`tests/mobile_*`) foram removidos**: dependiam do layout/API antigos (`_rest_aim`, analógico flutuante). Foram substituídos pela suíte `testes/`; o `soak_test` e o `qa/` continuam e foram ajustados.
 35. **Push com `-c credential.helper=manager`** (Git Credential Manager): a máquina não tinha helper configurado no `~/.gitconfig`; não alterei a configuração global.
+
+## Correções da auditoria independente
+36. **Cliques emulados do toque só são engolidos quando não há botão de interface embaixo do dedo** (`MobileControls._gui_button_at`): antes o "Pular tutorial" nunca recebia o toque. O `Dialogue` e a cutscene 2 também deixam passar o clique que cai no botão "Avançar cutscene". Teste: `t_skip_mobile` e `t_cutscene` (agora tocam bem depois da janela de tolerância).
+37. **Histerese com zona morta alta:** o limite de rearme nunca passa de 80% do limiar de disparo (senão, acima de ~217%, segurar a inclinação repetia a seta). Teste em `t_tilt_input` (250%).
+38. **"Calibrar" tem efeito duradouro:** guarda a pose neutra em `user://` e a opção "Calibrar ao abrir o modo comando" (padrão ligada) decide se o modo comando recalibra ou usa a pose guardada.
+39. **Paisagem invertida detectada pelo vetor no modo bruto** (`TiltLogic.detect_orientation`), sem depender de `DisplayServer.screen_get_orientation()`, que devolve a orientação configurada (sensor) e não a atual.
+40. **Área segura reavaliada a cada 0,5 s em aparelho real** (girar 180° troca o notch de lado sem mudar o tamanho da janela).
+41. **Inclinação não digita setas com o jogo pausado** (`MobileControls._on_tilt_arrow` e `AbilityComponent.press_arrow`).
+42. **Quadro de comandos:** no máximo 3 linhas de habilidades ("+N" para o resto) e escala efetiva que encolhe em telas mais estreitas que o print (tablet 4:3 continua na região x >= 0,78).
+43. **Lição da espada no celular só conta golpes vindos do botão de espada** (e não do joystick no modo espada), como pede o tutorial.
