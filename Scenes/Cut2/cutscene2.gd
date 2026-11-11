@@ -60,6 +60,12 @@ const SPEED_LAB := 70.0
 # --- Interface ---
 const BAR_SIZE := 0.08   # altura das barras de cinema (fração da tela)
 const SKIP_HOLD := 1.0   # segundos segurando ESC para pular
+const BOX_MARGIN_X := 120.0  # margem lateral da caixa de fala (igual à cutscene antiga)
+const BOX_MARGIN_Y := 68.0   # distância da borda da tela (deixa as barras de cinema livres)
+const BOX_HEIGHT := 128.0    # altura da caixa de fala
+const FONT_NAME_SIZE := 28   # mesmos tamanhos da caixa da cutscene antiga
+const FONT_TEXT_SIZE := 32
+const FONT_HINT_SIZE := 22
 
 const GLITCH_SHADER := """
 shader_type canvas_item;
@@ -123,7 +129,6 @@ var _glitch: ColorRect
 var _bar_top: ColorRect
 var _bar_bottom: ColorRect
 var _panel: Control
-var _panel_accent: ColorRect
 var _speaker: Label
 var _text: RichTextLabel
 var _prompt: Control
@@ -356,8 +361,6 @@ func _say(who: String, line: String, accent: Color, cps: float = 0.0) -> void:
 		return
 	_speaker.text = who
 	_speaker.add_theme_color_override("font_color", accent)
-	_panel_accent.color = accent
-	_text.add_theme_color_override("default_color", accent.lerp(Color.WHITE, 0.82))
 	_text.text = line
 	_text.visible_ratio = 0.0
 	# Se o personagem está embaixo na tela, a caixa vai para cima (para não cobri-lo)
@@ -425,8 +428,11 @@ func _set_prompt(on: bool) -> void:
 
 
 func _place_panel(top: bool) -> void:
-	var t := 0.105 if top else 0.715
-	_set_anchors(_panel, Vector4(0.14, t, 0.86, t + 0.19))
+	# Mesma caixa da cutscene antiga (margens de 120 px, 128 px de altura), fora das barras de cinema.
+	if top:
+		_set_anchors(_panel, Vector4(0, 0, 1, 0), Vector4(BOX_MARGIN_X, BOX_MARGIN_Y, -BOX_MARGIN_X, BOX_MARGIN_Y + BOX_HEIGHT))
+	else:
+		_set_anchors(_panel, Vector4(0, 1, 1, 1), Vector4(BOX_MARGIN_X, -(BOX_MARGIN_Y + BOX_HEIGHT), -BOX_MARGIN_X, -BOX_MARGIN_Y))
 
 
 ## Altura (em pixels da tela) dos pés do personagem.
@@ -616,6 +622,7 @@ func _build_ui() -> void:
 	_ui = Control.new()
 	_ui.name = "Raiz"
 	_ui.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_ui.theme = Palette.load_theme()  # fonte e caixa padrão do jogo (main_theme)
 	layer.add_child(_ui)
 	_ui.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
@@ -647,33 +654,25 @@ func _build_ui() -> void:
 	_ui.add_child(_bar_bottom)
 
 	# Caixa de diálogo
-	_panel = Control.new()
+	# Caixa da cutscene antiga: Panel do main_theme (marrom com borda dourada), sem botão de avançar.
+	_panel = Panel.new()
 	_panel.name = "Dialogo"
 	_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_panel.modulate.a = 0.0
 	_ui.add_child(_panel)
 	_place_panel(false)
 
-	var bg := _new_rect("Fundo", Color(0.02, 0.02, 0.04, 0.8))
-	_panel.add_child(bg)
-	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-
-	_panel_accent = _new_rect("Destaque", COLOR_STUDENT)
-	_panel.add_child(_panel_accent)
-	_set_anchors(_panel_accent, Vector4(0, 0, 0, 1), Vector4(0, 0, 3, 0))
-
 	var box := VBoxContainer.new()
 	box.name = "Caixa"
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	box.add_theme_constant_override("separation", 6)
+	box.add_theme_constant_override("separation", 0)
 	_panel.add_child(box)
-	_set_anchors(box, Vector4(0, 0, 1, 1), Vector4(26, 12, -34, -12))
+	_set_anchors(box, Vector4(0, 0, 1, 1), Vector4(32, 6, -48, -12))
 
 	_speaker = Label.new()
 	_speaker.name = "Nome"
-	_speaker.custom_minimum_size = Vector2(0, 26)
 	_speaker.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_speaker.add_theme_font_size_override("font_size", 18)
+	_speaker.add_theme_font_size_override("font_size", FONT_NAME_SIZE)
 	box.add_child(_speaker)
 
 	_text = RichTextLabel.new()
@@ -681,8 +680,9 @@ func _build_ui() -> void:
 	_text.scroll_active = false
 	_text.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_text.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_text.add_theme_font_size_override("normal_font_size", 22)
-	_text.add_theme_constant_override("line_separation", 4)
+	_text.add_theme_font_size_override("normal_font_size", FONT_TEXT_SIZE)
+	_text.add_theme_color_override("default_color", Palette.TEXT)
+	_text.add_theme_constant_override("line_separation", 0)
 	box.add_child(_text)
 
 	# Setinha piscando = "clique para continuar"
@@ -690,7 +690,14 @@ func _build_ui() -> void:
 	_prompt.name = "Seta"
 	_prompt.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_panel.add_child(_prompt)
-	_set_anchors(_prompt, Vector4(1, 1, 1, 1), Vector4(-30, -22, -16, -12))
+	_prompt.anchor_left = 1.0  # canto inferior direito da caixa
+	_prompt.anchor_top = 1.0
+	_prompt.anchor_right = 1.0
+	_prompt.anchor_bottom = 1.0
+	_prompt.offset_left = -34.0
+	_prompt.offset_top = -26.0
+	_prompt.offset_right = -20.0
+	_prompt.offset_bottom = -16.0
 	var tri := Polygon2D.new()
 	tri.polygon = PackedVector2Array([Vector2(0, 0), Vector2(14, 0), Vector2(7, 10)])
 	_prompt.add_child(tri)
@@ -702,10 +709,10 @@ func _build_ui() -> void:
 	_skip_label.text = "Segure ESC para pular"
 	_skip_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_skip_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_skip_label.add_theme_font_size_override("font_size", 13)
+	_skip_label.add_theme_font_size_override("font_size", FONT_HINT_SIZE)
 	_skip_label.modulate.a = 0.35
 	_ui.add_child(_skip_label)
-	_set_anchors(_skip_label, Vector4(1, 0, 1, 0), Vector4(-260, 8, -20, 30))
+	_set_anchors(_skip_label, Vector4(1, 0, 1, 0), Vector4(-300, 8, -20, 36))
 
 	_skip_bar = _new_rect("BarraPular", Color(1, 1, 1, 0.85))
 	_skip_bar.size = Vector2(0.0, 3.0)
@@ -733,10 +740,16 @@ func _new_rect(node_name: String, color: Color) -> ColorRect:
 
 ## anchors e offsets como (esquerda, topo, direita, baixo).
 func _set_anchors(c: Control, a: Vector4, o: Vector4 = Vector4.ZERO) -> void:
-	c.set_anchor_and_offset(SIDE_LEFT, a.x, o.x)
-	c.set_anchor_and_offset(SIDE_TOP, a.y, o.y)
-	c.set_anchor_and_offset(SIDE_RIGHT, a.z, o.z)
-	c.set_anchor_and_offset(SIDE_BOTTOM, a.w, o.w)
+	# Primeiro as quatro âncoras, depois os quatro offsets: trocar um lado de cada vez deixa o
+	# retângulo inválido por um instante e o Control "conserta" o tamanho (a caixa esticava).
+	c.anchor_left = a.x
+	c.anchor_top = a.y
+	c.anchor_right = a.z
+	c.anchor_bottom = a.w
+	c.offset_left = o.x
+	c.offset_top = o.y
+	c.offset_right = o.z
+	c.offset_bottom = o.w
 
 
 func _make_vignette() -> GradientTexture2D:
