@@ -5,8 +5,8 @@ extends PixelButton
 
 ## Texto do botão.
 const LABEL: String = "Avançar cutscene"
-const FONT_SIZE: int = 22  # Tamanho da fonte (múltiplo do pixel da fonte do jogo).
-const SIZE: Vector2 = Vector2(232.0, 52.0)  # Tamanho mínimo (toque confortável).
+const FONT_SIZE: int = 26  # Tamanho da fonte (múltiplo do pixel da fonte do jogo).
+const SIZE: Vector2 = Vector2(264.0, 56.0)  # Tamanho mínimo (toque confortável).
 const MARGIN: float = 16.0  # Distância das bordas (canto superior direito).
 
 ## O jogador tocou no botão.

@@ -49,13 +49,18 @@ static func stick(ci: CanvasItem, center: Vector2, radius: float, thumb: Vector2
 			Rect2(thumb_center - Vector2(thumb_r, thumb_r), Vector2(thumb_r, thumb_r) * 2.0), false)
 
 
+## Intensidade (0 a 1) do pisca do destaque no instante `phase` (s): ~1,6 piscadas por segundo.
+static func pulse(phase: float) -> float:
+	return 0.5 + 0.5 * sin(phase * TAU * 1.6)
+
+
 ## Anel dourado que pisca em volta do controle da vez (tutorial). `phase` em segundos.
 static func glow(ci: CanvasItem, center: Vector2, radius: float, phase: float) -> void:
-	var pulse: float = 0.5 + 0.5 * sin(phase * TAU * 1.6)  # ~1,6 piscadas por segundo
-	var frame_name: String = "glow_1.png" if pulse > 0.5 else "glow_0.png"
-	var r: float = radius * (1.18 + 0.1 * pulse)
+	var amount: float = pulse(phase)
+	var frame_name: String = "glow_1.png" if amount > 0.5 else "glow_0.png"
+	var r: float = radius * (1.18 + 0.1 * amount)
 	var rect: Rect2 = Rect2(center - Vector2(r, r), Vector2(r, r) * 2.0)
-	ci.draw_texture_rect(tex(frame_name), rect, false, Color(1.0, 1.0, 1.0, 0.45 + 0.55 * pulse))
+	ci.draw_texture_rect(tex(frame_name), rect, false, Color(1.0, 1.0, 1.0, 0.45 + 0.55 * amount))
 
 
 ## Moldura retangular (quadro de comandos, barras de status no editor).

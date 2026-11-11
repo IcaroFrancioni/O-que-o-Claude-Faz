@@ -207,7 +207,7 @@ func _draw() -> void:
 
 ## Faixa com as setas já digitadas (6 casas).
 func _draw_typed(_font: Font) -> void:
-	var start_x: float = (BASE_SIZE.x - float(SLOTS) * (SLOT_SIZE + 4.0) + 4.0) * 0.5
+	var start_x: float = 16.0  # alinhado à esquerda: o botão de pausa fica por cima do canto direito do quadro
 	for i: int in SLOTS:
 		var slot: Rect2 = Rect2(Vector2(start_x + float(i) * (SLOT_SIZE + 4.0), 40.0), Vector2(SLOT_SIZE, SLOT_SIZE))
 		draw_rect(slot, Color(0.0, 0.0, 0.0, 0.45))

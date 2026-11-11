@@ -14,3 +14,6 @@ export_credentials.cfg
 testes/saida/
 .import/
 *.translation
+testes/capturas/*.import
+testes/capturas/*.uid
+*.png.import.bak

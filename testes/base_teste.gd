@@ -41,6 +41,29 @@ func seconds(value: float) -> void:
 	await get_tree().create_timer(value, true, true).timeout
 
 
+## Espera `value` segundos de relógio real (ignora a câmera lenta do modo comando e a pausa).
+func real_seconds(value: float) -> void:
+	await get_tree().create_timer(value, true, false, true).timeout
+
+
+## Gravidade em tela (m/s²) de um celular segurado a 40 graus, inclinado `roll` (borda direita desce) e `pitch`
+## (borda de cima desce) graus. É o que o acelerômetro entrega no Android e no iOS com o Godot 4.x.
+static func gravity(roll: float = 0.0, pitch: float = 0.0) -> Vector3:
+	var p: float = deg_to_rad(-50.0 + pitch)
+	var r: float = deg_to_rad(roll)
+	return Vector3(sin(r), cos(r) * sin(p), -cos(r) * cos(p)) * 9.8
+
+
+## Vetor do acelerômetro para inclinar em `dir` (valor de `AbilityData.Dir`) 26 graus.
+static func tilt_vector(dir: int) -> Vector3:
+	match dir:
+		AbilityData.Dir.UP: return gravity(0.0, 26.0)
+		AbilityData.Dir.DOWN: return gravity(0.0, -26.0)
+		AbilityData.Dir.LEFT: return gravity(-26.0, 0.0)
+		AbilityData.Dir.RIGHT: return gravity(26.0, 0.0)
+	return gravity()
+
+
 ## Posição lógica (coordenadas do jogo) -> pixel da janela (o stretch do projeto muda a escala).
 func to_window(pos: Vector2) -> Vector2:
 	return get_tree().root.get_final_transform() * pos
@@ -98,6 +121,8 @@ func unload_level() -> void:
 
 ## Salva uma captura da janela em `res://testes/capturas/<nome>.png` (só funciona com renderizador, não em `--headless`).
 func snap(file_name: String) -> void:
+	if DisplayServer.get_name() == "headless":  # sem renderizador não há imagem (e frame_post_draw nunca dispara)
+		return
 	await RenderingServer.frame_post_draw
 	var image: Image = get_tree().root.get_texture().get_image()
 	if image == null or image.is_empty():

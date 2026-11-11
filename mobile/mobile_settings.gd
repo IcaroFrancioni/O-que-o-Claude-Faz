@@ -9,8 +9,17 @@ const SECTION_TILT: String = "tilt"
 const SECTION_LAYOUT: String = "layout"
 
 ## Arquivo em uso (os testes apontam para outro).
-static var path: String = DEFAULT_PATH
+static var path: String = _initial_path()
 static var _cfg: ConfigFile = null
+
+
+## Caminho inicial: `user://mobile_hud.cfg`, ou o do argumento de usuário `--mobile-config=user://arquivo.cfg`
+## (os testes automáticos usam isso para não mexer nas preferências do jogador).
+static func _initial_path() -> String:
+	for arg: String in OS.get_cmdline_user_args():
+		if arg.begins_with("--mobile-config="):
+			return arg.trim_prefix("--mobile-config=")
+	return DEFAULT_PATH
 
 
 ## Valor guardado ou `fallback`.

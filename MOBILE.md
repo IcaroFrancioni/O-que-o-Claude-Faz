@@ -1,46 +1,61 @@
-# Returing — versões para celular e outras plataformas
+# Returing no celular (Android, iPhone e iPad) e em outras plataformas
 
-O mesmo projeto roda em **Android, iPhone (pelo navegador ou app nativo), navegador, Windows, Linux e macOS**.
-Presets prontos em `export_presets.cfg` (Projeto > Exportar).
+O mesmo projeto roda em **Windows, Linux, macOS, Android, iOS/iPadOS e navegador**.
+Passo a passo de exportação: [EXPORTAR.md](EXPORTAR.md). Decisões técnicas: [DECISOES.md](DECISOES.md). Resultado dos testes e
+pendências: [RELATORIO.md](RELATORIO.md).
 
-| Plataforma | Preset | Como obter |
-|---|---|---|
-| Android | Android (APK) | exportar direto no Windows |
-| **iPhone / iPad** | Web (iPhone, Android e navegador) | exportar direto no Windows; abre no Safari (veja abaixo) |
-| iPhone (app nativo) | iOS (iPhone) | só em um **Mac com Xcode** (a Apple não permite gerar em Windows) |
-| Windows / Linux / macOS | Windows (PC), Linux (PC), macOS (PC) | exportar direto no Windows |
+* **Computador:** teclado e mouse, nada muda (nenhum controle de toque aparece).
+* **Celular/tablet:** controles de toque no layout de `referencias/mobile_layout.png`.
 
 ## Testar no PC como se fosse celular
 ```
-godot --path . -- --mobile
+godot --path . -- --mobile                  # o mouse vira o dedo (botão esquerdo); I/J/K/L inclinam o "celular"
+godot --path . -- --mobile --debug-tilt     # overlay com os valores do acelerômetro
+godot --path . -- --mobile --platform=ios --landscape-reverse
 ```
-O mouse vira o dedo (botão esquerdo).
-
-## iPhone pelo Safari (versão Web)
-1. Hospede a pasta `web/` (ela precisa ser servida por um endereço http/https, não abre por duplo clique):
-   * no PC: dê dois cliques em `servir_web.bat` e, no iPhone (mesma rede Wi-Fi), abra `http://IP-DO-PC:8080`;
-   * ou envie a pasta para itch.io, GitHub Pages, Netlify etc. (HTTPS).
-2. No Safari: Compartilhar > **Adicionar à Tela de Início**. Com HTTPS ele abre em tela cheia, como app.
-3. Gire o aparelho para paisagem. O jogo detecta iPhone/iPad e liga os controles de toque sozinho.
-
-A versão Web é compilada sem threads, então não exige cabeçalhos especiais do servidor.
-
-## iPhone — app nativo (Xcode)
-1. No Mac: Godot 4.7.2 + export templates, abrir este projeto.
-2. Projeto > Exportar > **iOS (iPhone)**: preencher *App Store Team ID* e *Bundle Identifier* (`com.returing.game`), exportar.
-3. Abrir o `.xcodeproj` no Xcode, escolher o iPhone e rodar (ou Archive para TestFlight).
-
-## Android
-Godot 4.7.2 + export templates, JDK 17 e Android SDK configurados em Editor > Configurações do Editor > Export > Android.
-Exportar o preset **Android (APK)** (pacote `com.returing.game`, paisagem, arm64 + armeabi-v7a).
 
 ## Controles do celular
-* Analógico esquerdo: mover. Analógico direito: **mirar e atacar** (espada e tiro).
-* Espada: segure para mirar (aparece a área laranja do golpe) e **solte para golpear**. Tiro: segure para carregar (barra azul) e solte para atirar.
-* Toque rápido no analógico direito: mira no inimigo mais próximo e ataca.
-* Botões: trocar de arma, dash, E (interagir, perto do terminal) e pausa.
+| Controle | Função |
+|---|---|
+| Joystick esquerdo | mover |
+| Joystick direito | mirar e atirar (segure para carregar, solte para disparar); um toque rápido mira no inimigo mais próximo |
+| Botão de espada | golpeia (sempre) |
+| Botão de dash (>>) | dash |
+| Botão de trocar arma | alterna o joystick direito entre tiro e espada |
+| Botão de modo comando | abre/fecha o modo comando e o **quadro de comandos** (canto superior direito) |
+| Botão de pausa | pausa; fica visível por cima de qualquer painel |
+| Botão E | aparece perto dos terminais da Fase 2 |
+
+### Modo comando por inclinação
+1. Toque no botão de modo comando: o quadro de comandos aparece e o celular é calibrado na posição atual.
+2. **Incline o celular** para cima, baixo, esquerda ou direita: cada inclinação vira uma seta da sequência (como o teclado no PC). Volte ao centro entre uma seta e a próxima.
+3. Ao completar a sequência de uma habilidade ela dispara.
+* Sem acelerômetro, o quadro avisa e mostra um **D-pad** para tocar.
+* **Configurações > Acelerômetro:** sensibilidade, zona morta, intervalo entre setas e **Calibrar**.
+
+### Editor de HUD
+**Pausa > Editar controles:** arraste cada controle (inclusive as barras de status e o quadro de comandos), amplie/reduza com a
+**pinça** ou o slider, **Restaurar padrão** (layout do print) e **Salvar** (grava em `user://mobile_hud.cfg`).
 
 ## Ajustes rápidos
 * `autoload/platform.gd`: `MOBILE_SPRITE_SCALE` (1.5), `MOBILE_CAMERA_ZOOM` (2.0), `MOBILE_MIN_SHOT_CHARGE` (0.2).
-* `autoload/mobile_controls.gd`: `MELEE_ON_RELEASE` (false = a espada golpeia sem parar enquanto o dedo está no analógico).
+* `mobile/mobile_layout.gd`: posições/tamanhos padrão dos controles (em proporção da tela).
+* `mobile/tilt_input.gd`: `sensitivity`, `deadzone`, `cooldown`, `smoothing_rate` (também nas configurações).
+* `autoload/mobile_controls.gd`: `MELEE_ON_RELEASE`, zonas de toque dos joysticks.
 * Mira assistida do tiro: constantes `ASSIST_*` em `characters/turing/player_projectile.gd`.
+
+## Assets
+Gerados por `python3 tools/gerar_assets.py` em `assets/gerados/` (paleta em `tools/paleta.txt`). Para usar arte feita à mão, troque os PNGs
+mantendo o nome e o tamanho.
+
+## Testes
+```
+godot --headless --path . --script res://testes/rodar_todos.gd            # suíte completa
+godot --headless --path . --script res://testes/rodar_todos.gd -- --filtro=tutorial
+godot --path . --script res://testes/capturar_todas.gd                     # capturas em testes/capturas/ (precisa de janela)
+```
+
+## iPhone pelo Safari (versão Web)
+1. `./exportar.sh debug web` e hospede `build/web/` (HTTPS).
+2. No Safari: Compartilhar > **Adicionar à Tela de Início**. Gire para paisagem: o jogo liga os controles de toque sozinho.
+3. O acelerômetro no Safari exige permissão do usuário (iOS 13+) e só vale no app nativo; no navegador o modo comando usa o D-pad.

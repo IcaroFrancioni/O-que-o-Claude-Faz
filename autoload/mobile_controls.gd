@@ -330,7 +330,7 @@ func _update_layout() -> void:
 
 ## Margens (px de tela lógica) das áreas que o celular reserva: notch, cantos arredondados, barra de gestos.
 func _compute_safe_margins() -> Vector4:
-	if not (OS.has_feature("android") or OS.has_feature("ios")):
+	if not Platform.is_real_device():
 		return Vector4.ZERO
 	var window: Vector2 = Vector2(DisplayServer.window_get_size())
 	var screen: Vector2 = Vector2(DisplayServer.screen_get_size())

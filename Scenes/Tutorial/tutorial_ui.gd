@@ -28,6 +28,9 @@ const FONT_PANEL: int = 32
 const FONT_HINT: int = 22
 ## Tempo (s) segurando TAB para pular.
 const SKIP_HOLD: float = 1.0
+## Celular: o painel de comando se centraliza entre os joysticks e botões (proporção da largura da tela) e tem esta largura.
+const MOBILE_PANEL_CENTER: float = 0.42
+const MOBILE_PANEL_WIDTH: float = 560.0
 
 ## Efeito de tela: vinheta, granulado e escurecimento.
 const POST_SHADER: String = """
@@ -220,6 +223,10 @@ func show_panel(kind: StringName, text: String, key_text: String = "", hint: Str
 	_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	_panel.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	_panel.offset_bottom = -52.0
+	if Platform.is_mobile():
+		# Celular: o painel fica entre o joystick esquerdo e os botões da direita (sem cobrir nenhum controle).
+		_panel.anchor_left = MOBILE_PANEL_CENTER
+		_panel.anchor_right = MOBILE_PANEL_CENTER
 	_panel_slot.add_child(_panel)
 
 	var column: VBoxContainer = VBoxContainer.new()
@@ -240,6 +247,10 @@ func show_panel(kind: StringName, text: String, key_text: String = "", hint: Str
 	column.add_child(icon)
 	if not hint.is_empty():
 		var hint_label: Label = _label(hint, FONT_HINT, Color("#8fa3b8"))
+		if Platform.is_mobile():  # dica quebra em linhas para o painel caber entre os controles
+			hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			hint_label.custom_minimum_size.x = MOBILE_PANEL_WIDTH
 		column.add_child(hint_label)
 
 	# Entrada: sobe um pouco e aparece.
@@ -518,6 +529,10 @@ func _build_ui() -> void:
 	skip_box.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	skip_box.offset_top = 14.0
 	skip_box.offset_right = -16.0
+	if Platform.is_mobile():  # Celular: fora do botão de pausa e do quadro de comandos (canto superior direito).
+		skip_box.anchor_left = 0.77
+		skip_box.anchor_right = 0.77
+		skip_box.offset_right = 0.0
 	skip_box.add_theme_constant_override(&"separation", 4)
 	_root.add_child(skip_box)
 	_skip_button = Button.new()

@@ -69,7 +69,7 @@ func _init() -> void:
 		if arg.begins_with(PLATFORM_ARG_PREFIX):
 			_name_override = arg.trim_prefix(PLATFORM_ARG_PREFIX).to_lower()
 	# Celular de verdade (Android/iOS) ou simulação.
-	_mobile = OS.has_feature("android") or OS.has_feature("ios") or simulated
+	_mobile = is_real_device() or simulated
 	if not _mobile and OS.has_feature("web"):  # Navegador: confere se o aparelho tem tela de toque.
 		# Tela de toque do Godot ou User-Agent de Android/iPhone/iPad.
 		_mobile = DisplayServer.is_touchscreen_available() or _web_is_touch_device()
@@ -81,13 +81,24 @@ func _init() -> void:
 ## Chamado quando o autoload entra na cena. No celular impede que a tela apague durante a partida.
 func _ready() -> void:
 	# Só mexe na tela em aparelhos de verdade, não na simulação do PC.
-	if _mobile and not simulated and (OS.has_feature("android") or OS.has_feature("ios")):
+	if _mobile and not simulated and is_real_device():
 		DisplayServer.screen_set_keep_on(true)  # a tela não apaga no meio da partida
 
 
 ## True em celular/tablet (Android, iOS, iPad) ou com `--mobile`.
 func is_mobile() -> bool:
 	return _mobile
+
+
+## True só em aparelho de verdade (Android ou iOS), nunca na simulação `--mobile` do PC. É onde existem
+## sensores, área segura (notch) e a tela não pode apagar.
+func is_real_device() -> bool:
+	return OS.has_feature("android") or OS.has_feature("ios")
+
+
+## False onde o jogo não deve oferecer "Sair" (iOS e navegador não fecham o app por botão).
+func can_quit() -> bool:
+	return not (OS.has_feature("ios") or OS.has_feature("web"))
 
 
 ## True em Windows, Linux e macOS (tudo que não é celular).
@@ -126,7 +137,7 @@ func is_ios() -> bool:
 func landscape_orientation() -> int:
 	if simulated_reverse_landscape:
 		return TiltLogic.Orientation.LANDSCAPE_REVERSE
-	if not (OS.has_feature("android") or OS.has_feature("ios")):
+	if not is_real_device():
 		return TiltLogic.Orientation.LANDSCAPE
 	var current: int = DisplayServer.screen_get_orientation()
 	if current == DisplayServer.SCREEN_REVERSE_LANDSCAPE:

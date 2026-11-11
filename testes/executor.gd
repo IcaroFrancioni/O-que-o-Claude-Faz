@@ -1,5 +1,5 @@
 extends Node
-## Executor de um teste: `godot --path . res://testes/executor.tscn -- --teste=res://testes/t_xxx.gd [--mobile] ...`
+## Executor de um teste: `godot --path . res://testes/executor.tscn -- --teste=res://testes/<teste>.gd [--mobile] ...`
 ## Carrega o script (que estende `TesteBase`), espera o `rodar()` e sai com código 0 (tudo ok) ou 1 (falhas).
 ## Quem roda a suíte inteira é o `rodar_todos.gd`.
 
@@ -16,7 +16,7 @@ func _go() -> void:
 		if arg.begins_with("--teste="):
 			script_path = arg.trim_prefix("--teste=")
 	if script_path.is_empty() or not ResourceLoader.exists(script_path):
-		printerr("executor: informe --teste=res://testes/t_xxx.gd")
+		printerr("executor: informe --teste=<caminho do script de teste em testes>")
 		get_tree().quit(2)
 		return
 	var teste: TesteBase = (load(script_path) as GDScript).new() as TesteBase
