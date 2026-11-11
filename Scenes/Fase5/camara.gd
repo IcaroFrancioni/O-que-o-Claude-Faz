@@ -15,10 +15,21 @@ signal porta_liberada(numero: int)
 ## As 10 máquinas da Sala 3 foram destruídas.
 signal camara_vencida
 
-## Cena seguinte (o terminal do quiz).
-@export_file("*.tscn") var next_scene: String = "res://Scenes/Fase2/Fase2.tscn"
+## Cena seguinte (depois da Câmara vem a Fase 3).
+@export_file("*.tscn") var next_scene: String = "res://Scenes/Fase3/fase_3.tscn"
 ## Pausa entre morrer e mostrar o game over (a HUD do projeto mostra a tela).
 @export_range(0.0, 10.0, 0.1, "or_greater") var game_over_delay: float = 1.5
+
+@export_group("Abertura (a voz do tutorial)")
+## Falas do homem misterioso: tela preta e texto azul, como a voz do tutorial (Dialogue.Style.VOICE).
+## Não é cutscene: sem caixa nem ilustração, e segurar ESC pula. Vazio = a fase começa direto.
+@export var falas_abertura: PackedStringArray = [
+	"Você passou pelo terminal. Mas respostas certas não bastam.",
+	"A Aegis só responde a quem prova que pensa.",
+	"Desvie dos raios com o dash. E quebre as máquinas com o tiro carregado.",
+]
+## Tempo (s) da tela preta sumindo depois das falas.
+@export_range(0.0, 3.0, 0.1) var fade_abertura: float = 0.8
 
 @export_group("Salas (cada uma é um cronograma com as máquinas como filhas)")
 @export var sala1: CamaraSequenciador
@@ -40,11 +51,15 @@ signal camara_vencida
 @export var player: Player  # Alan Turing (o do projeto).
 @export var hud: CamaraHud  # HUD da câmara.
 
-var sala_atual: int = 0  # Sala cujo cronograma está ligado (0 = nenhuma ainda).
+## Camada da tela preta da abertura (acima da HUD = 10 e 11, abaixo do Dialogue = 120).
+const ABERTURA_LAYER: int = 119
+
+var sala_atual: int = 0 # Sala cujo cronograma está ligado (0 = nenhuma ainda).
 
 var _destruidas_sala3: int = 0  # Máquinas da Sala 3 já destruídas.
 var _total_sala3: int = 0  # Máquinas da Sala 3.
 var _saindo: bool = false  # Já pediu a troca de cena.
+var _em_abertura: bool = false  # True durante as falas da abertura (gatilhos de entrada ignorados).
 
 
 ## Confere as referências, liga os sinais e anuncia o início da fase.
@@ -64,7 +79,7 @@ func _ready() -> void:
 	porta2.definir_restantes(sala2.maquinas().size())
 	porta_final.definir_restantes(_total_sala3)
 	EventBus.level_started.emit()  # Avisa a HUD do projeto e os controles do celular.
-	_entrar_sala(1)
+	_abertura()
 
 
 ## Desliga o sinal do EventBus ao sair da cena.
@@ -80,11 +95,46 @@ func total_da_sala(numero: int) -> int:
 	return 0
 
 
+# --- Abertura ---
+
+## Tela preta com a voz do tutorial (texto azul). O jogador fica parado e nada dispara até acabar; depois a
+## tela preta some e a Sala 1 liga o cronograma.
+func _abertura() -> void:
+	if falas_abertura.is_empty():
+		_entrar_sala(1)
+		return
+	var camada := CanvasLayer.new()
+	camada.layer = ABERTURA_LAYER  # Acima da HUD, abaixo do diálogo (120).
+	var preto := ColorRect.new()
+	preto.color = Color.BLACK
+	preto.set_anchors_preset(Control.PRESET_FULL_RECT)
+	preto.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	camada.add_child(preto)
+	add_child(camada)
+	var pausa: Node = get_node_or_null("Pause")  # ESC (segurar) pula as falas: a pausa não pode abrir junto.
+	if pausa != null:
+		pausa.process_mode = Node.PROCESS_MODE_DISABLED
+	player.set_physics_process(false)
+	_em_abertura = true  # o Player já nasce dentro do gatilho da Sala 1: ele só vale depois das falas
+	var dialogo: Dialogue = Dialogue.show_lines(self, falas_abertura, Dialogue.Style.VOICE)
+	await dialogo.finished
+	if not is_inside_tree():
+		return
+	_em_abertura = false
+	player.set_physics_process(true)
+	if pausa != null:
+		pausa.process_mode = Node.PROCESS_MODE_INHERIT
+	_entrar_sala(1)
+	var tween: Tween = create_tween()
+	tween.tween_property(preto, "modulate:a", 0.0, fade_abertura)
+	tween.tween_callback(camada.queue_free)
+
+
 # --- Salas ---
 
 ## O jogador pisou no gatilho de entrada de uma sala (só o Player conta).
 func _on_entrada(corpo: Node2D, numero: int) -> void:
-	if CombatUtils.is_player(corpo):
+	if not _em_abertura and CombatUtils.is_player(corpo):
 		_entrar_sala(numero)
 
 

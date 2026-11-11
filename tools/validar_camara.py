@@ -650,8 +650,14 @@ def teste_arquivos():
     pg = ler("project.godot")
     for acao in ("debug_overlay", "dash", "charge_shoot", "attack_sword", "move_left"):
         check(re.search(r"^%s=" % acao, pg, re.M) is not None, "InputMap tem a ação '%s' (nenhuma ação nova foi preciso criar)" % acao)
-    sala = ler("Scenes/Fase2/SalaNova.tscn")
-    check('next_scene = "res://Scenes/Fase5/Camara.tscn"' in sala, "SalaNova.next_scene -> Camara.tscn")
+    # sequência: SalaNova (cristal) -> Defesa -> quiz (Fase2) -> Câmara -> Fase 3
+    check("next_scene" not in ler("Scenes/Fase2/SalaNova.tscn") and "Defesa/Defesa.tscn" in ler("Scenes/Fase2/sala_nova.gd"),
+          "SalaNova segue para a Defesa (como no projeto original)")
+    check("Defesa/Fase2.tscn" not in ler("Scenes/Defesa/defense_level.gd") and "Fase2/Fase2.tscn" in ler("Scenes/Defesa/defense_level.gd"),
+          "Defesa segue para o quiz (Fase2.tscn)")
+    check('next_scene = "res://Scenes/Fase5/Camara.tscn"' in ler("Scenes/Fase2/Fase2.tscn"), "quiz (Fase2.tscn) -> Camara.tscn")
+    check("Fase3/fase_3.tscn" in ler("Scenes/Fase5/camara.gd"), "Camara.next_scene -> fase_3.tscn")
+    check("Dialogue.Style.VOICE" in ler("Scenes/Fase5/camara.gd"), "abertura da Câmara usa a voz do tutorial (VOICE)")
     check(re.search(r'texture_filter=0|default_texture_filter=0', pg) is not None, "project.godot mantém o filtro Nearest")
 
 

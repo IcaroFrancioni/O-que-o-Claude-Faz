@@ -1970,7 +1970,7 @@ size = Vector2(96, 64)
 
 [node name="Fase2" type="Node2D" unique_id=1770825341 node_paths=PackedStringArray("quiz", "terminal")]
 script = ExtResource("1_k8c2l")
-next_scene = "res://Scenes/Fase3/fase_3.tscn"
+next_scene = "res://Scenes/Fase5/Camara.tscn"
 quiz = NodePath("CanvasLayer/Quiz")
 terminal = NodePath("Terminal")
 

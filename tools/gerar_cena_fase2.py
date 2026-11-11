@@ -319,7 +319,6 @@ def build_sala():
     s = Scene()
     s.node("SalaNova", "Node2D", None, {
         "script": SCRIPT(s, "sala_nova.gd"),
-        "next_scene": '"res://Scenes/Fase5/Camara.tscn"',   # a SalaNova leva à Câmara de Provas
         "nucleo": 'NodePath("Nucleo")', "nucleo_sprite": 'NodePath("Nucleo/Sprite2D")'},
         node_paths=["nucleo", "nucleo_sprite"])
     s.node("Musica", "AudioStreamPlayer", ".", {

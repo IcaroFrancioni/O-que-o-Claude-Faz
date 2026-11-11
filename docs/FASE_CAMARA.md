@@ -1,11 +1,14 @@
 # Fase 5 — Câmara de Provas ("Linha de Tiro")
 
 ```
-Fase 1 -> Labirinto.tscn -> SalaNova.tscn -> Camara.tscn -> Fase2.tscn (quiz) -> Fase 3
+Fase 1 -> Labirinto -> SalaNova (cristal) -> Defesa (teleporte) -> Fase2 (quiz) -> Camara -> Fase 3
 ```
 
-(`SalaNova.next_scene` agora aponta para a Câmara; a `Defesa.tscn` continua no projeto, mas deixou de estar na
-sequência. Para recolocá-la: `Camara.next_scene = res://Scenes/Defesa/Defesa.tscn`.)
+Só dois pontos mudaram: `Fase2.tscn` (quiz) agora tem `next_scene = Camara.tscn` e `Camara.next_scene = fase_3.tscn`.
+A `SalaNova` e a `Defesa` continuam como no projeto original.
+
+**Abertura:** ao entrar, tela preta com a voz do homem misterioso do tutorial (`Dialogue.Style.VOICE`: texto azul, sem caixa
+nem ilustração, não é cutscene; segurar ESC pula). Falas em `Camara.falas_abertura`. O Player fica parado e nada dispara até acabar.
 
 Abra `Scenes/Fase5/Camara.tscn` e rode com **F6**. F3 liga a depuração.
 

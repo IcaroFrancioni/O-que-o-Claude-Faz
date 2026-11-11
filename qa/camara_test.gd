@@ -4,7 +4,7 @@ extends Node
 ## Rodar: godot --headless --path . res://qa/camara_test.tscn      (sai com código 1 se algo falhar)
 
 const FASE: String = "res://Scenes/Fase5/Camara.tscn"
-const QUIZ: String = "res://Scenes/Fase2/Fase2.tscn"
+const PROXIMA: String = "res://Scenes/Fase3/fase_3.tscn"  # Depois da Câmara vem a Fase 3.
 const PROJETIL: PackedScene = preload("res://characters/turing/PlayerProjectile.tscn")
 const TIME_SCALE: float = 2.0  # Acelera o jogo: com Engine.time_scale o `delta` da física também cresce.
 const ORDEM_SALA3: Array[String] = ["T0", "RL", "B1", "B3", "LL", "T4", "LU", "B5", "T2", "RU"]
@@ -77,13 +77,15 @@ func _quando(nome: String, estado: CamaraMaquina.Estado, desde: float = 0.0) -> 
 
 
 ## Abre a fase e deixa o Player invulnerável e parado.
-func _abrir() -> void:
+func _abrir(com_abertura: bool = false) -> void:
 	if _fase != null:
 		_fase.queue_free()
 		await _fisica(3)
 	_log.clear()
 	_ultimo.clear()
 	_fase = (load(FASE) as PackedScene).instantiate() as Camara
+	if not com_abertura:
+		_fase.falas_abertura = PackedStringArray()  # os testes de jogo começam direto
 	get_tree().root.add_child(_fase)
 	get_tree().current_scene = _fase
 	_relogio = 0.0
@@ -137,6 +139,7 @@ func _rodar() -> void:
 	Engine.time_scale = TIME_SCALE
 	EventBus.scene_change_requested.disconnect(Global.change_scene)
 	EventBus.scene_change_requested.connect(func(p: String) -> void: _requisicoes.append(p))
+	await _abertura()
 	await _abrir()
 	await _estrutura()
 	await _sala1()
@@ -149,6 +152,29 @@ func _rodar() -> void:
 	Engine.time_scale = 1.0
 	print("camara_test: %d verificações, %d falhas" % [_total, _falhas])
 	get_tree().quit(1 if _falhas > 0 else 0)
+
+
+# --- 0) Abertura: tela preta + voz do tutorial (texto azul), sem cutscene ---
+
+func _abertura() -> void:
+	await _abrir(true)
+	_confere(_fase.falas_abertura.size() >= 2, "a abertura tem falas do homem misterioso")
+	var dialogo: Dialogue = null
+	for filho: Node in _fase.get_children():
+		if filho is Dialogue:
+			dialogo = filho as Dialogue
+	_confere(dialogo != null and dialogo.style == Dialogue.Style.VOICE, "abertura usa o estilo VOICE (voz azul do tutorial)")
+	_confere(not _fase.find_children("*", "ColorRect", true, false).is_empty(), "tela preta cobrindo a fase")
+	_confere(_fase.sala_atual == 0 and not _player.is_physics_processing(),
+			"durante as falas: nada liga e o Player fica parado (sala %d, física %s)" % [_fase.sala_atual, _player.is_physics_processing()])
+	_confere(_fase.find_children("*", "Cutscene*", true, false).is_empty() and dialogo.speaker == "" and dialogo.backdrop == null,
+			"sem caixa, nome nem ilustração (não é cutscene)")
+	await _espera(2.0)
+	_confere(_fase.sala1.maquinas()[0].estado == CamaraMaquina.Estado.INATIVA, "nenhuma máquina dispara durante as falas")
+	dialogo.stop()
+	await _fisica(3)
+	_confere(_fase.sala_atual == 1 and _player.is_physics_processing() and _fase.sala1.ativo,
+			"depois das falas: a Sala 1 liga e o Player volta a andar")
 
 
 # --- 1) Estrutura da cena ---
@@ -176,7 +202,7 @@ func _estrutura() -> void:
 		_confere(not m.destrutivel and m.hurtbox == null, "%s é decoração indestrutível (sem Hurtbox)" % m.name)
 	_confere(_fase.sala2.maquinas().size() == 1, "Sala 2 tem 1 máquina destrutível")
 	_confere(is_equal_approx(_fase.sala3.intervalo_disparos, 2.4), "intervalo da Sala 3 = 2,4 s")
-	_confere(ResourceLoader.exists(_fase.next_scene) and _fase.next_scene == QUIZ, "next_scene aponta para o quiz")
+	_confere(ResourceLoader.exists(_fase.next_scene) and _fase.next_scene == PROXIMA, "next_scene aponta para a Fase 3")
 	# A Hurtbox da máquina só é lida pelo tiro (camada 1); a espada lê só a camada 5.
 	var espada := _player.weapon as Sword
 	var h: Hurtbox = _fase.sala2.maquinas()[0].hurtbox
@@ -346,7 +372,7 @@ func _sala3_destruicao() -> void:
 	_confere(_fase.porta_final.colisao.disabled, "colisão da porta final desligada")
 	_fase.saida.body_entered.emit(_player)
 	await _fisica(2)
-	_confere(_requisicoes == [QUIZ], "saída pede a cena do quiz (%s)" % str(_requisicoes))
+	_confere(_requisicoes == [PROXIMA], "saída pede a próxima cena (%s)" % str(_requisicoes))
 
 
 ## Máquina da fase pelo nome.

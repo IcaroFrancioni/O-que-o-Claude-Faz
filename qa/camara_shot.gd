@@ -37,6 +37,7 @@ func _ate(m: CamaraMaquina, estado: CamaraMaquina.Estado, extra: float = 0.0) ->
 func _run() -> void:
 	EventBus.scene_change_requested.disconnect(Global.change_scene)
 	_fase = (load("res://Scenes/Fase5/Camara.tscn") as PackedScene).instantiate() as Camara
+	_fase.falas_abertura = PackedStringArray()  # as capturas começam direto na fase
 	add_child(_fase)
 	get_tree().current_scene = _fase
 	_fase.player.conceder_invulnerabilidade(100000.0)

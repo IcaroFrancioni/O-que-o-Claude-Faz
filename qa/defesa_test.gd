@@ -7,7 +7,6 @@ extends Node
 ## Saída: linhas "OK:" e "FALHA:"; código de saída 1 se algo falhar.
 
 const DEFESA: String = "res://Scenes/Defesa/Defesa.tscn"
-const CAMARA: String = "res://Scenes/Fase5/Camara.tscn"  # A SalaNova agora leva à Câmara de Provas.
 const SALA_NOVA: String = "res://Scenes/Fase2/SalaNova.tscn"
 const QUIZ: String = "res://Scenes/Fase2/Fase2.tscn"
 const TIME_SCALE: float = 4.0  # Acelera o jogo (os timers e tweens acompanham).
@@ -385,10 +384,10 @@ func _test_crystal_sequence() -> void:
 	var sala: SalaNova = (load(SALA_NOVA) as PackedScene).instantiate() as SalaNova
 	add_child(sala)
 	await get_tree().process_frame
-	_check(sala.next_scene == CAMARA, "SalaNova leva à Câmara de Provas")
+	_check(sala.next_scene == DEFESA, "SalaNova leva à fase de defesa")
 	var player: Node2D = sala.get_node("Player") as Node2D
 	sala.nucleo.body_entered.emit(player)
 	await get_tree().process_frame
 	_check(_scene_requests.is_empty(), "sequência do cristal não troca de cena na hora")
 	await _wait(30.0)
-	_check(_scene_requests == [CAMARA], "depois da sequência pede a Câmara de Provas (%s)" % str(_scene_requests))
+	_check(_scene_requests == [DEFESA], "depois da sequência pede a fase de defesa (%s)" % str(_scene_requests))

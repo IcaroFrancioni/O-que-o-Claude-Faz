@@ -27,7 +27,6 @@ size = Vector2(56, 56)
 
 [node name="SalaNova" type="Node2D" node_paths=PackedStringArray("nucleo", "nucleo_sprite")]
 script = ExtResource("1_sala_nova")
-next_scene = "res://Scenes/Fase5/Camara.tscn"
 nucleo = NodePath("Nucleo")
 nucleo_sprite = NodePath("Nucleo/Sprite2D")
 
