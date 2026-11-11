@@ -1808,7 +1808,7 @@ limit_bottom = 704
 
 [node name="LevelManager" type="Node" parent="." unique_id=235287195]
 script = ExtResource("6_level")
-next_scene = "res://Scenes/Fase2/Labirinto.tscn"
+next_scene = "res://Scenes/Cut2/cutscene2.tscn"
 
 [node name="StaticBody2D" type="StaticBody2D" parent="." unique_id=1467666946]
 position = Vector2(577, 47)
