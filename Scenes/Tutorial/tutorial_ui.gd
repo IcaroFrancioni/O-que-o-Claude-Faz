@@ -69,7 +69,7 @@ var _clock: float = 0.0  # Relógio geral (pulso do brilho e do granulado).
 var _panel_slot: Control = null  # Área onde o painel de comando aparece.
 var _panel: PanelContainer = null  # Painel atual (null se não há).
 var _panel_style: StyleBoxFlat = null  # Estilo do painel atual (a borda vira verde ao concluir).
-var _panel_keys: Dictionary[StringName, KeyCap] = {}  # Teclas do painel atual, por ação.
+var _panel_keys: Dictionary[StringName, Control] = {}  # Teclas do painel atual, por ação.
 var _panel_big_check: Control = null  # Check grande ao concluir.
 var _panel_tween: Tween = null  # Animação do painel.
 
@@ -255,17 +255,17 @@ func show_panel(kind: StringName, text: String, key_text: String = "", hint: Str
 
 ## Liga ou desliga o brilho de "apertada" de uma tecla do painel.
 func set_key_pressed(action: StringName, pressed: bool) -> void:
-	var key: KeyCap = _panel_keys.get(action)
+	var key: Control = _panel_keys.get(action)
 	if key != null:
-		key.pressed = pressed
+		key.set(&"pressed", pressed)
 
 
 ## Marca uma tecla como testada (check verde). Devolve true se ela ainda não estava marcada.
 func mark_key(action: StringName) -> bool:
-	var key: KeyCap = _panel_keys.get(action)
-	if key == null or key.checked:
+	var key: Control = _panel_keys.get(action)
+	if key == null or bool(key.get(&"checked")):
 		return false
-	key.checked = true
+	key.set(&"checked", true)
 	if sfx != null:
 		sfx.play(&"key_ok", -4.0, 1.0 + 0.12 * float(_checked_count()))
 	return true
@@ -273,15 +273,15 @@ func mark_key(action: StringName) -> bool:
 
 ## A tecla `action` do painel atual já tem check?
 func is_key_checked(action: StringName) -> bool:
-	var key: KeyCap = _panel_keys.get(action)
-	return key != null and key.checked
+	var key: Control = _panel_keys.get(action)
+	return key != null and bool(key.get(&"checked"))
 
 
 ## Quantas teclas do painel já têm check.
 func _checked_count() -> int:
 	var total: int = 0
-	for key: KeyCap in _panel_keys.values():
-		if key.checked:
+	for key: Control in _panel_keys.values():
+		if bool(key.get(&"checked")):
 			total += 1
 	return total
 
@@ -345,6 +345,8 @@ func _kill_panel_tween() -> void:
 
 ## Constrói o ícone de cada tipo de painel.
 func _build_icon(kind: StringName, key_text: String) -> Control:
+	if String(kind).begins_with("m_"):  # Celular: ilustração do controle no lugar do teclado/mouse.
+		return _build_mobile_icon(kind)
 	match kind:
 		&"wasd":
 			var grid: GridContainer = GridContainer.new()
@@ -383,6 +385,26 @@ func _build_icon(kind: StringName, key_text: String) -> Control:
 			var right: MouseIcon = MouseIcon.new(&"right")
 			return right
 	return Control.new()
+
+
+## Ícone do celular: o controle da vez pisca/anima. Os tipos de quatro direções registram uma "tecla" por direção.
+func _build_mobile_icon(kind: StringName) -> Control:
+	var icon: MobileGuideIcon = MobileGuideIcon.new(kind)
+	if icon.dir_keys.is_empty():
+		_panel_keys[&"key"] = icon
+	else:
+		for action: StringName in icon.dir_keys:
+			_panel_keys[action] = icon.dir_keys[action] as Control
+	return icon
+
+
+## Ícone do painel atual (para os testes).
+func current_icon() -> Control:
+	if _panel == null:
+		return null
+	for node: Node in _panel.find_children("*", "MobileGuideIcon", true, false):
+		return node as Control
+	return null
 
 
 # --- Pular tutorial ---
@@ -510,8 +532,10 @@ func _build_ui() -> void:
 	skip_box.add_child(_skip_button)
 	var hold_label: Label = _label("ou segure TAB", FONT_HINT - 2, Color("#5f7288"))
 	hold_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	hold_label.visible = not Platform.is_mobile()  # Celular não tem TAB.
 	skip_box.add_child(hold_label)
 	var bar_back: ColorRect = ColorRect.new()
+	bar_back.visible = not Platform.is_mobile()
 	bar_back.color = Color(1, 1, 1, 0.08)
 	bar_back.custom_minimum_size = Vector2(160.0, 4.0)
 	bar_back.mouse_filter = Control.MOUSE_FILTER_IGNORE

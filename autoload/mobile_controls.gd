@@ -56,6 +56,8 @@ var layout: MobileLayout = MobileLayout.new()
 var highlight: StringName = &""
 ## Enquanto o editor de HUD está aberto, os controles de jogo ficam parados.
 var edit_mode: bool = false
+## Escondido de propósito (ex.: a abertura escura do tutorial, antes de o jogador aparecer).
+var suspended: bool = false
 
 var _shown: bool = false  # True enquanto os controles aparecem na tela.
 var _pause_shown: bool = false  # True enquanto o botão de pausa aparece.
@@ -290,7 +292,7 @@ func _on_node_added(node: Node) -> void:
 
 
 func _wants_to_show() -> bool:
-	if edit_mode or _blocked or get_tree().paused:
+	if edit_mode or suspended or _blocked or get_tree().paused:
 		return false
 	return _player_alive()
 
@@ -303,7 +305,7 @@ func _player_alive() -> bool:
 
 ## O botão de pausa aparece em jogo, também por cima de qualquer painel.
 func _wants_pause_button() -> bool:
-	return not edit_mode and not _blocked and _player_alive()
+	return not edit_mode and not suspended and not _blocked and _player_alive()
 
 
 func _set_shown(value: bool) -> void:

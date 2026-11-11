@@ -153,7 +153,7 @@ func read_raw() -> Vector3:
 	return value
 
 
-## Gravidade sintética: celular um pouco inclinado para trás (como na mão) + 25 graus nas teclas.
+## Gravidade sintética: celular a 40 graus (como na mão) + 28 graus de inclinação enquanto a tecla estiver apertada.
 func _simulated_vector() -> Vector3:
 	var roll: float = 0.0
 	var pitch: float = 0.0
@@ -165,11 +165,9 @@ func _simulated_vector() -> Vector3:
 		pitch += 1.0  # borda de cima desce = seta para cima
 	if Input.is_physical_key_pressed(KEY_K):
 		pitch -= 1.0
-	var tilt_angle: float = deg_to_rad(28.0)
-	var base: Vector3 = Vector3(0.0, -cos(deg_to_rad(40.0)), -sin(deg_to_rad(40.0)))  # segurado a 40 graus
-	base.x += sin(tilt_angle) * roll
-	base.y += sin(tilt_angle) * pitch
-	return base.normalized() * 9.8
+	var pitch_angle: float = deg_to_rad(-(90.0 - 40.0) + 28.0 * pitch)  # segurado a 40 graus + 28 graus nas teclas
+	var roll_angle: float = deg_to_rad(28.0 * roll)
+	return Vector3(sin(roll_angle), cos(roll_angle) * sin(pitch_angle), -cos(roll_angle) * cos(pitch_angle)) * 9.8
 
 
 func _process(delta: float) -> void:
@@ -214,7 +212,7 @@ func step(dt: float) -> void:
 		_latched = false
 	_cooldown_left = maxf(_cooldown_left - dt, 0.0)
 	# Inclinação suavizada em relação ao neutro.
-	current_tilt = Vector2(_smooth.x - calibration.x, -(_smooth.y - calibration.y))
+	current_tilt = TiltLogic.tilt_from_unit(_smooth, calibration)
 	tilt_changed.emit(current_tilt)
 	var dir: int = TiltLogic.direction(current_tilt, sensitivity)
 	if _latched:

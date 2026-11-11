@@ -84,11 +84,26 @@ static func screen_unit(accel: Vector3, platform: String, orientation: int, fram
 ## Inclinação calibrada (UI: x direita, y para baixo) em relação à posição neutra `calibration`
 ## (um vetor unitário em tela, obtido com `screen_unit` na hora de calibrar).
 static func tilt(accel: Vector3, calibration: Vector3, platform: String, orientation: int, frame: int = Frame.SCREEN) -> Vector2:
-	var n: Vector3 = screen_unit(accel, platform, orientation, frame)
-	if n == Vector3.ZERO:
+	return tilt_from_unit(screen_unit(accel, platform, orientation, frame), calibration)
+
+
+## Mesma coisa a partir de um vetor unitário em tela. Usa a DIFERENÇA DE ÂNGULOS (não de componentes):
+## a resposta fica igual com o celular quase em pé ou quase deitado.
+static func tilt_from_unit(n: Vector3, calibration: Vector3) -> Vector2:
+	if n == Vector3.ZERO or calibration == Vector3.ZERO:
 		return Vector2.ZERO
-	# Borda direita desce -> gravidade ganha componente +x. Borda de cima desce -> +y (y da tela é "cima").
-	return Vector2(n.x - calibration.x, -(n.y - calibration.y))
+	var now: Vector2 = angles(n)
+	var neutral: Vector2 = angles(calibration)
+	# Borda direita desce -> `roll` cresce. Borda de cima desce (longe do jogador) -> `pitch` cresce -> seta para cima.
+	return Vector2(sin(now.x - neutral.x), -sin(wrapf(now.y - neutral.y, -PI, PI)))
+
+
+## Ângulos (roll, pitch) em radianos de uma gravidade unitária em tela.
+## roll = para que lado a tela está "caindo" (gx); pitch = inclinação para frente/trás em torno do eixo x.
+static func angles(n: Vector3) -> Vector2:
+	var roll: float = atan2(n.x, sqrt(n.y * n.y + n.z * n.z))
+	var pitch: float = atan2(n.y, -n.z)
+	return Vector2(roll, pitch)
 
 
 ## Direção de uma inclinação já calibrada: `DIR_*` ou `DIR_NONE` (zona morta, abaixo do limiar ou diagonal ambígua).

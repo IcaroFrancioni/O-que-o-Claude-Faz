@@ -74,6 +74,7 @@ var _button: Button = null  # "Avançar" (BOX).
 var _backdrop_layer: CanvasLayer = null
 var _backdrop_rect: TextureRect = null
 var _skip_label: Label = null
+var _skip_button: SkipCutsceneButton = null  # Celular: botão "Avançar cutscene" no lugar do "segure ESC".
 var _skip_timer: Timer = null
 
 
@@ -239,7 +240,9 @@ func _apply_style() -> void:
 	_button.visible = is_box and show_advance_button
 	_backdrop_layer.visible = is_box and backdrop != null
 	_backdrop_rect.texture = backdrop
-	_skip_label.visible = allow_skip
+	_skip_label.visible = allow_skip and not Platform.is_mobile()
+	if _skip_button != null:
+		_skip_button.visible = allow_skip
 	_label.reparent(_box if is_box else _root, false)
 	if is_box:
 		_label.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -356,6 +359,7 @@ func _build_ui() -> void:
 	_skip_label.modulate = Color(1.0, 1.0, 1.0, 0.6)
 	_skip_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(_skip_label)
+	_skip_button = SkipCutsceneButton.attach(_root, _on_skip_held)  # só no celular
 
 	_skip_timer = Timer.new()
 	_skip_timer.one_shot = true

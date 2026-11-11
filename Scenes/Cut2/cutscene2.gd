@@ -713,6 +713,9 @@ func _build_ui() -> void:
 	_skip_label.modulate.a = 0.35
 	_ui.add_child(_skip_label)
 	_set_anchors(_skip_label, Vector4(1, 0, 1, 0), Vector4(-300, 8, -20, 36))
+	if Platform.is_mobile():  # Celular: botão "Avançar cutscene" no lugar do "segure ESC".
+		_skip_label.visible = false
+		SkipCutsceneButton.attach(_ui, func() -> void: _finish(true))
 
 	_skip_bar = _new_rect("BarraPular", Color(1, 1, 1, 0.85))
 	_skip_bar.size = Vector2(0.0, 3.0)
