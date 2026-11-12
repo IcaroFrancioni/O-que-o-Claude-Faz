@@ -35,7 +35,7 @@ const VOICE_TOP: float = 54.0
 const VOICE_WIDTH: float = 960.0
 const VOICE_JITTER: float = 1.3  # Tremor da voz (px) a cada VOICE_JITTER_STEP.
 const VOICE_JITTER_STEP: float = 0.06
-# Caixa da cutscene (mesmas medidas da caixa da cutscene de abertura).
+# Caixa da cutscene (mesmas medidas de cutscene1.tscn).
 const BOX_FONT_SIZE: int = 32
 const BOX_NAME_SIZE: int = 28
 const BOX_HINT_SIZE: int = 22
@@ -76,6 +76,8 @@ var _backdrop_rect: TextureRect = null
 var _skip_label: Label = null
 var _skip_button: SkipCutsceneButton = null  # Celular: botão "Avançar cutscene" no lugar do "segure ESC".
 var _skip_timer: Timer = null
+var _safe: Control = null  # Área segura: caixa, fala em voz e avisos ficam dentro dela.
+var _voice_height: float = 116.0  # Altura da fala em voz (cresce no celular se o texto precisar).
 
 
 func _init() -> void:
@@ -109,6 +111,10 @@ func play(new_lines: PackedStringArray) -> void:
 	_lines = new_lines
 	_index = -1
 	_playing = true
+	if Platform.is_mobile():  # a fala usa a tela toda: joysticks, botões e pausa saem enquanto ela toca
+		MobileControls.suspend(self)
+		if not tree_exiting.is_connected(_resume_controls):
+			tree_exiting.connect(_resume_controls)
 	if _root == null:
 		_build_ui()
 	_apply_style()
@@ -182,6 +188,8 @@ func _next_line() -> void:
 	var text: String = _lines[_index]
 	_label.text = text
 	_label.visible_ratio = 0.0
+	_fit_text()
+	_fit_text.call_deferred()  # de novo depois do layout (largura final da caixa)
 	_line_start_msec = Time.get_ticks_msec()
 	_typing = true
 	line_started.emit(_index)
@@ -210,6 +218,7 @@ func _close() -> void:
 	_typing = false
 	_playing = false
 	visible = false
+	_resume_controls()
 	_backdrop_layer.visible = false
 	finished.emit()
 	if free_on_finish:
@@ -236,8 +245,8 @@ func _apply_style() -> void:
 	if box_at_top:  # Mesma caixa (altura de 116 px), colada no alto.
 		_box.anchor_top = 0.0
 		_box.anchor_bottom = 0.0
-		_box.offset_top = BOX_TOP_MARGIN
-		_box.offset_bottom = BOX_TOP_MARGIN + 116.0
+		_box.offset_top = _top_margin(BOX_TOP_MARGIN)
+		_box.offset_bottom = _top_margin(BOX_TOP_MARGIN) + 116.0
 	_name_label.visible = is_box and not speaker.is_empty()
 	_name_label.text = speaker
 	_button.visible = is_box and show_advance_button
@@ -246,7 +255,7 @@ func _apply_style() -> void:
 	_skip_label.visible = allow_skip and not Platform.is_mobile()
 	if _skip_button != null:
 		_skip_button.visible = allow_skip
-	_label.reparent(_box if is_box else _root, false)
+	_label.reparent(_box if is_box else _safe, false)
 	if is_box:
 		_label.set_anchors_preset(Control.PRESET_FULL_RECT)
 		_label.offset_left = 32.0
@@ -260,10 +269,10 @@ func _apply_style() -> void:
 		_label.add_theme_constant_override(&"outline_size", 0)
 	else:
 		_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
-		_label.offset_left = -VOICE_WIDTH * 0.5
-		_label.offset_right = VOICE_WIDTH * 0.5
-		_label.offset_top = VOICE_TOP
-		_label.offset_bottom = VOICE_TOP + 116.0
+		_label.offset_left = -_voice_width() * 0.5
+		_label.offset_right = _voice_width() * 0.5
+		_label.offset_top = _top_margin(VOICE_TOP)
+		_label.offset_bottom = _top_margin(VOICE_TOP) + 116.0
 		_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 		_label.add_theme_font_size_override(&"font_size", VOICE_FONT_SIZE)
@@ -288,10 +297,76 @@ func _jitter_voice() -> void:
 		return
 	var jx: float = randf_range(-VOICE_JITTER, VOICE_JITTER)
 	var jy: float = randf_range(-VOICE_JITTER, VOICE_JITTER)
-	_label.offset_left = -VOICE_WIDTH * 0.5 + jx
-	_label.offset_right = VOICE_WIDTH * 0.5 + jx
-	_label.offset_top = VOICE_TOP + jy
-	_label.offset_bottom = VOICE_TOP + 116.0 + jy
+	_label.offset_left = -_voice_width() * 0.5 + jx
+	_label.offset_right = _voice_width() * 0.5 + jx
+	_label.offset_top = _top_margin(VOICE_TOP) + jy
+	_label.offset_bottom = _top_margin(VOICE_TOP) + _voice_height + jy
+
+
+func _resume_controls() -> void:
+	if Platform.is_mobile():
+		MobileControls.resume(self)
+
+
+## Distância do alto para a fala em voz e para a caixa `box_at_top`. No celular as barras de status ficam no alto
+## da tela: o texto desce para logo abaixo delas.
+func _top_margin(base: float) -> float:
+	if not Platform.is_mobile():
+		return base
+	var safe: Rect2 = Platform.get_safe_rect()
+	var status: Rect2 = MobileControls.control_rect(MobileLayout.STATUS)
+	var bars_on_screen: bool = false  # sobre tela preta (sem HUD) a fala fica no mesmo lugar da voz do tutorial
+	for hud: Node in get_tree().root.find_children("*", "GameHUD", true, false):
+		var bar: Control = (hud as GameHUD).player_health_bar
+		if bar != null and bar.is_visible_in_tree():
+			bars_on_screen = true
+	if bars_on_screen and status.position.y < safe.position.y + 170.0:
+		return maxf(base, status.end.y - safe.position.y + 12.0)
+	return base
+
+
+## Margem lateral da caixa: 120 px no computador; no celular a caixa usa a largura da área segura (o texto quebra
+## como no computador mesmo com notch).
+func _box_side_margin() -> float:
+	return 24.0 if Platform.is_mobile() else 120.0
+
+
+## Largura da fala em "voz": a do computador, limitada à área segura no celular.
+func _voice_width() -> float:
+	if not Platform.is_mobile():
+		return VOICE_WIDTH
+	return minf(VOICE_WIDTH, Platform.get_safe_rect().size.x - 32.0)
+
+
+## Celular: se a fala precisa de mais linhas do que cabem (tela estreita), a caixa cresce para o texto nunca
+## estourar. No computador as medidas ficam fixas, como sempre foram.
+func _fit_text() -> void:
+	if not Platform.is_mobile() or _label == null:
+		return
+	var font: Font = _label.get_theme_font(&"font")
+	var font_size: int = _label.get_theme_font_size(&"font_size")
+	if style == Style.BOX:
+		var width: float = _box.size.x - _label.offset_left + _label.offset_right
+		if width <= 0.0:
+			return
+		var needed: float = font.get_multiline_string_size(_full_text(), HORIZONTAL_ALIGNMENT_LEFT, width, font_size).y
+		var height: float = maxf(116.0, needed + _label.offset_top - _label.offset_bottom + 4.0)
+		if box_at_top:
+			_box.offset_bottom = _box.offset_top + height
+		else:
+			_box.offset_top = _box.offset_bottom - height
+	else:
+		var needed_voice: float = font.get_multiline_string_size(_full_text(), HORIZONTAL_ALIGNMENT_CENTER, _voice_width(), font_size).y
+		_voice_height = maxf(116.0, needed_voice + 4.0)
+		_label.offset_left = -_voice_width() * 0.5
+		_label.offset_right = _voice_width() * 0.5
+		_label.offset_top = _top_margin(VOICE_TOP)
+		_label.offset_bottom = _top_margin(VOICE_TOP) + _voice_height
+
+
+## Texto completo da fala atual (o Label mostra só a parte já digitada).
+func _full_text() -> String:
+	return _label.text
 
 
 ## Monta tudo uma vez: ilustração (camada própria), raiz com tema, caixa, nome, botão e aviso de pular.
@@ -314,16 +389,25 @@ func _build_ui() -> void:
 	_root.theme = THEME
 	add_child(_root)
 
-	_box = Panel.new()  # Mesmas medidas da caixa da cutscene de abertura.
+	# Tudo o que tem texto ou toque fica dentro da área segura (no computador ela é a tela inteira: nada muda).
+	_safe = Control.new()
+	_safe.name = "AreaSegura"
+	_safe.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_safe.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(_safe)
+	SafeArea.fit(_safe)
+	_safe.resized.connect(_fit_text)
+
+	_box = Panel.new()  # Mesmas medidas do TextBox de cutscene1.tscn.
 	_box.anchor_top = 1.0
 	_box.anchor_right = 1.0
 	_box.anchor_bottom = 1.0
-	_box.offset_left = 120.0
+	_box.offset_left = _box_side_margin()
 	_box.offset_top = -140.0
-	_box.offset_right = -120.0
+	_box.offset_right = -_box_side_margin()
 	_box.offset_bottom = -24.0
 	_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_root.add_child(_box)
+	_safe.add_child(_box)
 
 	_name_label = Label.new()
 	_name_label.position = Vector2(32.0, 6.0)
@@ -346,6 +430,8 @@ func _build_ui() -> void:
 	_button.offset_top = -84.0
 	_button.offset_right = -20.0
 	_button.offset_bottom = -28.0
+	if Platform.is_mobile():  # alvo de toque de tamanho mínimo, ainda dentro da caixa
+		_button.offset_top = _button.offset_bottom - Platform.MIN_TOUCH
 	_button.focus_mode = Control.FOCUS_NONE
 	_button.pressed.connect(_on_button_pressed)
 	_box.add_child(_button)

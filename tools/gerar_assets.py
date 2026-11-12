@@ -436,13 +436,12 @@ def gerar_icones():
 
 
 def main():
-    gerar_botoes()
+    # Botões, joysticks e ícones dos controles agora vêm de tools/gerar_controles.py (pixel art, grades em tools/pixel/).
     gerar_moldura()
     gerar_setas()
     gerar_dpad()
     gerar_inclinacao()
     gerar_celular()
-    gerar_joystick_demo()
     gerar_brilho()
     gerar_icones()
     print("Assets gerados em", SAIDA)

@@ -66,7 +66,7 @@ func _run() -> void:
 		"tutorial":  # Tutorial.
 			await _open("res://Scenes/Tutorial/tutorial.tscn")
 		"cutscene":  # Cutscene.
-			await _open("res://Scenes/Cut2/cutscene2.tscn")
+			await _open("res://Scenes/Cut1/cutscene1.tscn")
 			await _frames(10)
 		"complete":  # Fase concluída.
 			await _open(LEVEL_1)

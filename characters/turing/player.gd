@@ -157,6 +157,9 @@ func _enter_tree() -> void:
 ## liga o EventBus, cria mira e câmera e avisa o resto do jogo que o jogador existe.
 func _ready() -> void:
 	scale *= Platform.sprite_scale  # celular: sprites maiores (corpo, hurtbox e espada crescem juntos)
+	if Platform.player_hp > 0:  # Celular: a plataforma fixa a vida do Turing (100).
+		hp_maximo = Platform.player_hp
+		hp = Platform.player_hp
 	hp_maximo = maxi(hp_maximo, 1)  # Garante pelo menos 1 de vida máxima para não dividir por zero.
 	_hp_maximo_base = hp_maximo  # Guarda a vida máxima original para os bônus de habilidade.
 	hp = clampi(hp, 0, hp_maximo)  # Mantém a vida dentro do intervalo válido.

@@ -3,7 +3,7 @@ extends PixelButton
 ## (Estende PixelButton só para ganhar o visual de hover/foco; a lógica de clique é a de sempre.)
 
 # Cena aberta ao clicar (a cutscene).
-@export_file("*.tscn") var target_scene: String = "res://Scenes/Cut2/cutscene2.tscn"
+@export_file("*.tscn") var target_scene: String = "res://Scenes/Cut1/cutscene1.tscn"
 ## Se a troca falhar, o botão volta depois deste tempo
 @export_range(0.1, 5.0, 0.1) var reenable_delay: float = 1.0
 

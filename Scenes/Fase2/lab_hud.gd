@@ -31,6 +31,8 @@ func _enter_tree() -> void:
 
 ## Começa com tudo limpo.
 func _ready() -> void:
+	SafeArea.fit(get_node_or_null(^"Raiz") as Control)  # Celular: textos e slot da chave dentro da área segura.
+	SafeArea.stack_top_band(get_node_or_null(^"Raiz") as Control, [objective_label, puzzle_label], key_slot)  # fora das barras de status e da pausa
 	if notice_label != null:
 		notice_label.modulate.a = 0.0
 	if prompt_label != null:

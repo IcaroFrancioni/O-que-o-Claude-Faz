@@ -324,7 +324,7 @@ func _begin_exit() -> void:
 	await _fx.teleport(_portal_screen_uv(), TELEPORT_TIME)
 	await _fx.cover(1.0, 0.2)
 	_fx.hide_effects()
-	var dialogue: Dialogue = Dialogue.show_lines(self, EXIT_LINES, Dialogue.Style.BOX, EXIT_NAME, LAB_IMAGE)
+	var dialogue: Dialogue = Dialogue.show_lines(self, EXIT_LINES, Dialogue.Style.BOX, "", LAB_IMAGE)  # sem autor: só a cutscene final mostra quem fala
 	_fx.cover(0.0, 0.4)  # A cortina preta (acima da ilustração) some e revela o laboratório.
 	await dialogue.finished
 	EventBus.scene_change_requested.emit(next_scene)

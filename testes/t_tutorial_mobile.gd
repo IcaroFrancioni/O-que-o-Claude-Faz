@@ -141,7 +141,8 @@ func rodar() -> void:
 
 	# --- 5) Espada ---
 	await real_seconds(1.0)
-	await _check_blink(MobileLayout.SWORD, "passo 5")
+	await _check_blink(MobileLayout.AIM, "passo 5")
+	check(not mc.weapon_ranged, "passo 5: a espada continua escolhida no joystick direito")
 	await _check_icon(&"m_sword", "passo 5")
 	await snap("45_tutorial_5_espada")
 	attempts = 0
@@ -154,10 +155,13 @@ func rodar() -> void:
 			touch(0, move_c + to.normalized() * 60.0, true)
 			await real_seconds(0.4)
 			touch(0, move_c + to.normalized() * 60.0, false)
-		else:
-			await tap(3, mc.control_center(MobileLayout.SWORD), 4)
+		else:  # golpe = arrastar o joystick direito na direção do droide e soltar (espada escolhida)
+			var alvo: Vector2 = mc.control_center(MobileLayout.AIM) + to.normalized() * 60.0
+			touch(3, alvo, true)
+			await frames(6)
+			touch(3, alvo, false)
 			await real_seconds(0.5)
-	check(tut._melee_hits > 0, "passo 5: o botão de espada acertou o droide (tentativas: %d)" % attempts)
+	check(tut._melee_hits > 0, "passo 5: o joystick direito com a espada acertou o droide (tentativas: %d)" % attempts)
 	check(tut.step != &"sword", "passo 5: acertar a espada avança")
 
 	# Destruir o droide (passo 'finish') com a espada.
@@ -170,7 +174,10 @@ func rodar() -> void:
 			await real_seconds(0.35)
 			touch(0, move_c + to2.normalized() * 60.0, false)
 		else:
-			await tap(3, mc.control_center(MobileLayout.SWORD), 4)
+			var alvo2: Vector2 = mc.control_center(MobileLayout.AIM) + to2.normalized() * 60.0
+			touch(3, alvo2, true)
+			await frames(6)
+			touch(3, alvo2, false)
 			await real_seconds(0.45)
 
 	# --- 6) Modo comando + inclinar o celular ---

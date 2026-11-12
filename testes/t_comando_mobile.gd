@@ -63,7 +63,7 @@ func rodar() -> void:
 	var view: Vector2 = mc.view_size()
 	var board_rect: Rect2 = Rect2(board.global_position, board.size * board.scale)
 	check(board_rect.position.x / view.x >= 0.78 and board_rect.end.y / view.y <= 0.58, "o quadro está na região marcada no print (%s)" % board_rect)
-	for id: StringName in [MobileLayout.MOVE, MobileLayout.AIM, MobileLayout.SWORD, MobileLayout.DASH, MobileLayout.WEAPON, MobileLayout.COMMAND]:
+	for id: StringName in [MobileLayout.MOVE, MobileLayout.AIM, MobileLayout.DASH, MobileLayout.WEAPON, MobileLayout.COMMAND]:
 		var r: float = mc.control_radius(id)
 		var c: Vector2 = mc.control_center(id)
 		check(not board_rect.intersects(Rect2(c - Vector2(r, r), Vector2(r, r) * 2.0)), "o quadro aberto não cobre %s" % id)

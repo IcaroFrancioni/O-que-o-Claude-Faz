@@ -52,6 +52,9 @@ func _ready() -> void:
 	if not _valid:  # HUD inválida: não faz nada.
 		return
 
+	# Celular: botões de fim de fase/game over dentro da área segura (os fundos continuam cobrindo a tela toda).
+	SafeArea.fit(game_over_panel.get_node_or_null(^"GameOverBox") as Control)
+	SafeArea.fit(complete_panel)
 	game_over_panel.hide()  # Esconde o game over.
 	complete_panel.hide()  # Esconde a fase concluída.
 	if charge_bar != null:  # Barra de carga vazia.

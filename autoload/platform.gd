@@ -28,6 +28,11 @@ const MOBILE_SPRITE_SCALE: float = 1.5
 const MOBILE_CAMERA_ZOOM: float = 2.0
 ## Carga mínima de um tiro dado só com um toque rápido (0.0 a 1.0).
 const MOBILE_MIN_SHOT_CHARGE: float = 0.2
+## Menor lado de um alvo de toque (botões de menu, sliders), em px lógicos: equivale a ~48 dp num celular em
+## paisagem (tela lógica de 648 px de altura para ~430 dp => 1 dp ~ 1,5 px lógico).
+const MIN_TOUCH: float = 72.0
+## Vida máxima (e inicial) do Turing no celular. No PC vale o valor do `player.gd`.
+const MOBILE_PLAYER_HP: int = 100
 
 ## Nomes de plataforma devolvidos por `platform_name()`.
 const ANDROID: String = "android"
@@ -49,10 +54,18 @@ var camera_zoom: float = 1.0
 var aim_assist: bool = false
 ## Carga mínima do tiro (0.0 no PC).
 var min_shot_charge: float = 0.0
+## Vida máxima do Turing imposta pela plataforma (0 = sem imposição, vale a do `player.gd`). Só no celular.
+var player_hp: int = 0
 ## Overlay de depuração do acelerômetro (flag `--debug-tilt`).
 var debug_tilt: bool = false
 ## Paisagem invertida simulada (flag `--landscape-reverse`); em aparelho real vem do sistema.
 var simulated_reverse_landscape: bool = false
+
+## Avisa quando a área segura muda (girar o aparelho, testes).
+signal safe_area_changed
+
+## Recuos da área segura forçados pelos testes, em px da JANELA: esquerda, topo, direita, base (null = usar o sistema).
+var _safe_override: Variant = null
 
 var _mobile: bool = false  # True no Android, iOS (ou navegador com toque) e com `--mobile`.
 var _name_override: String = ""  # Plataforma forçada por `--platform=` ou pelos testes.
@@ -83,6 +96,8 @@ func _ready() -> void:
 	# Só mexe na tela em aparelhos de verdade, não na simulação do PC.
 	if _mobile and not simulated and is_real_device():
 		DisplayServer.screen_set_keep_on(true)  # a tela não apaga no meio da partida
+	if _mobile:  # a área segura em px lógicos muda quando a janela muda de tamanho
+		get_tree().root.size_changed.connect(func() -> void: safe_area_changed.emit())
 
 
 ## True em celular/tablet (Android, iOS, iPad) ou com `--mobile`.
@@ -145,6 +160,55 @@ func landscape_orientation() -> int:
 	return TiltLogic.Orientation.LANDSCAPE
 
 
+## Área segura da tela em coordenadas LÓGICAS do jogo (as mesmas dos Controls): o retângulo que não fica sob o
+## notch, os cantos arredondados, a barra de gestos do Android ou a barra home do iOS. No computador é a tela toda.
+func get_safe_rect() -> Rect2:
+	var view: Vector2 = _view_size()
+	var m: Vector4 = get_safe_margins()
+	return Rect2(m.x, m.y, maxf(view.x - m.x - m.z, 1.0), maxf(view.y - m.y - m.w, 1.0))
+
+
+## Recuos da área segura em px lógicos: esquerda, topo, direita, base.
+func get_safe_margins() -> Vector4:
+	var view: Vector2 = _view_size()
+	var window: Vector2 = _window_size()
+	if window.x <= 0.0 or window.y <= 0.0:
+		return Vector4.ZERO
+	var k: Vector2 = view / window  # px da janela -> px lógicos
+	if _safe_override != null:
+		var o: Vector4 = _safe_override
+		return Vector4(o.x * k.x, o.y * k.y, o.z * k.x, o.w * k.y)
+	if not is_real_device():
+		return Vector4.ZERO
+	var screen: Vector2 = Vector2(DisplayServer.screen_get_size())
+	var safe: Rect2i = DisplayServer.get_display_safe_area()
+	if screen.x <= 0.0 or safe.size.x <= 0:
+		return Vector4.ZERO
+	return Vector4(float(safe.position.x) * k.x, float(safe.position.y) * k.y,
+			maxf(screen.x - float(safe.end.x), 0.0) * k.x, maxf(screen.y - float(safe.end.y), 0.0) * k.y)
+
+
+## Testes: simula notch/barras com recuos em px da janela (esquerda, topo, direita, base). `null` volta ao sistema.
+func set_safe_insets_override(insets: Variant) -> void:
+	_safe_override = insets
+	safe_area_changed.emit()
+
+
+## Tamanho da janela em px reais (a raiz da árvore; vale também em headless, onde não há janela do sistema).
+func _window_size() -> Vector2:
+	var tree: SceneTree = Engine.get_main_loop() as SceneTree
+	if tree == null or tree.root == null:
+		return Vector2(DisplayServer.window_get_size())
+	return Vector2(tree.root.size)
+
+
+func _view_size() -> Vector2:
+	var tree: SceneTree = Engine.get_main_loop() as SceneTree
+	if tree == null or tree.root == null:
+		return Vector2(1152.0, 648.0)
+	return tree.root.get_visible_rect().size
+
+
 ## Liga/desliga o modo celular em tempo de execução (só para os testes automáticos e o editor).
 ## Os scripts que já leram o valor no `_ready` não são refeitos: troque antes de criar as cenas.
 func force_mobile(value: bool) -> void:
@@ -166,7 +230,9 @@ func _apply_mobile_tuning() -> void:
 		camera_zoom = MOBILE_CAMERA_ZOOM  # Câmera mais próxima.
 		aim_assist = true  # Liga a mira assistida do tiro.
 		min_shot_charge = MOBILE_MIN_SHOT_CHARGE  # Tiro mínimo para o toque rápido.
+		player_hp = MOBILE_PLAYER_HP  # Turing com 100 de vida no celular.
 	else:
+		player_hp = 0  # PC: vida do `player.gd`.
 		sprite_scale = 1.0
 		camera_zoom = 1.0
 		aim_assist = false

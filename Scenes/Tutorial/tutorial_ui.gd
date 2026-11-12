@@ -223,10 +223,8 @@ func show_panel(kind: StringName, text: String, key_text: String = "", hint: Str
 	_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	_panel.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	_panel.offset_bottom = -52.0
-	if Platform.is_mobile():
-		# Celular: o painel fica entre o joystick esquerdo e os botões da direita (sem cobrir nenhum controle).
-		_panel.anchor_left = MOBILE_PANEL_CENTER
-		_panel.anchor_right = MOBILE_PANEL_CENTER
+	# Celular: `_panel_slot` é a faixa livre de baixo (entre o joystick esquerdo e os botões da direita): centralizado
+	# nela, o painel não cobre nenhum controle.
 	_panel_slot.add_child(_panel)
 
 	var column: VBoxContainer = VBoxContainer.new()
@@ -250,7 +248,13 @@ func show_panel(kind: StringName, text: String, key_text: String = "", hint: Str
 		if Platform.is_mobile():  # dica quebra em linhas para o painel caber entre os controles
 			hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			hint_label.custom_minimum_size.x = MOBILE_PANEL_WIDTH
+			# A largura acompanha a faixa livre (muda com a resolução, o notch e o layout escolhido pelo jogador).
+			var fit_hint: Callable = func() -> void:
+				if is_instance_valid(hint_label):
+					hint_label.custom_minimum_size.x = minf(MOBILE_PANEL_WIDTH, _panel_slot.size.x - 48.0)
+			fit_hint.call()
+			_panel_slot.resized.connect(fit_hint)
+			hint_label.tree_exiting.connect(func() -> void: _panel_slot.resized.disconnect(fit_hint))
 		column.add_child(hint_label)
 
 	# Entrada: sobe um pouco e aparece.
@@ -490,6 +494,7 @@ func _build_ui() -> void:
 	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_ui_layer.add_child(_root)
+	SafeArea.fit(_root)  # Celular: voz, painéis e "Pular tutorial" dentro da área segura.
 
 	# Voz: grande, centralizada no alto da tela.
 	_voice_wrap = Control.new()
@@ -501,7 +506,13 @@ func _build_ui() -> void:
 	_voice_wrap.offset_right = 480.0
 	_voice_wrap.offset_top = 54.0
 	_voice_wrap.offset_bottom = 170.0
-	_root.add_child(_voice_wrap)
+	if Platform.is_mobile():  # Celular: a voz ocupa a faixa livre do alto (fora das barras de status e da pausa).
+		_voice_wrap.set_anchors_preset(Control.PRESET_TOP_WIDE)
+		_voice_wrap.offset_left = 0.0
+		_voice_wrap.offset_right = 0.0
+		_voice_wrap.offset_top = 54.0
+		_voice_wrap.offset_bottom = 170.0
+	SafeArea.band_region(_root, SafeArea.Band.TOP, "FaixaDaVoz").add_child(_voice_wrap)
 	_voice = _label("", FONT_VOICE, COLOR_VOICE)
 	_voice.name = &"Voice"
 	_voice.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -521,6 +532,7 @@ func _build_ui() -> void:
 	_panel_slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_panel_slot.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_root.add_child(_panel_slot)
+	SafeArea.fit_band(_panel_slot, SafeArea.Band.BOTTOM)  # só no celular
 
 	# Pular tutorial (canto superior direito).
 	var skip_box: VBoxContainer = VBoxContainer.new()
@@ -539,6 +551,8 @@ func _build_ui() -> void:
 	_skip_button.text = "Pular tutorial"
 	_skip_button.flat = true
 	_skip_button.focus_mode = Control.FOCUS_NONE
+	if Platform.is_mobile():  # alvo de toque de tamanho mínimo
+		_skip_button.custom_minimum_size = Vector2(Platform.MIN_TOUCH * 2.0, Platform.MIN_TOUCH)
 	_skip_button.add_theme_font_override(&"font", FONT)
 	_skip_button.add_theme_font_size_override(&"font_size", FONT_HINT + 2)
 	_skip_button.add_theme_color_override(&"font_color", Color("#8fa3b8"))

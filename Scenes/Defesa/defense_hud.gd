@@ -40,12 +40,16 @@ func _init() -> void:
 	layer = LAYER_INDEX
 
 
+var _banner_host: Control = null  # Celular: faixa livre onde o aviso de wave aparece.
+
+
 func _ready() -> void:
 	var root: Control = Control.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.theme = THEME
 	add_child(root)
+	SafeArea.fit(root)  # Celular: wave, aviso e barras dentro da área segura.
 
 	var box: VBoxContainer = VBoxContainer.new()
 	box.anchor_left = 0.5
@@ -55,7 +59,9 @@ func _ready() -> void:
 	box.offset_top = TOP_MARGIN
 	box.add_theme_constant_override(&"separation", 2)
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.add_child(box)
+	# Celular: barras do portal, wave e aviso ficam na faixa livre do alto (fora das barras de status e da pausa).
+	var top: Control = SafeArea.band_region(root, SafeArea.Band.TOP)
+	top.add_child(box)
 	_hp_bar = _make_bar(box, "PORTAL", TEX_HP)
 	_charge_bar = _make_bar(box, "CARGA", TEX_CHARGE)
 	_wave_label = _make_label(FONT_LABEL, Palette.ACCENT)
@@ -67,7 +73,9 @@ func _ready() -> void:
 	_hint.offset_top = TOP_MARGIN + 100.0
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_hint.modulate.a = 0.0
-	root.add_child(_hint)
+	if Platform.is_mobile():
+		_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	top.add_child(_hint)
 
 	_banner = Panel.new()
 	_banner.set_anchors_preset(Control.PRESET_CENTER)
@@ -77,7 +85,15 @@ func _ready() -> void:
 	_banner.offset_bottom = -40.0
 	_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_banner.modulate.a = 0.0
-	root.add_child(_banner)
+	if Platform.is_mobile():  # Celular: o aviso de wave ocupa a faixa livre entre o joystick esquerdo e os botões da direita.
+		_banner.anchor_left = 0.0
+		_banner.anchor_right = 1.0
+		_banner.offset_left = 0.0
+		_banner.offset_right = 0.0
+		_banner_host = SafeArea.band_region(root, SafeArea.Band.BOTTOM, "FaixaDoAviso")
+		_banner_host.add_child(_banner)
+	else:
+		root.add_child(_banner)
 	_banner_title = _make_label(FONT_BANNER, Palette.ACCENT)
 	_banner_title.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	_banner_title.offset_top = 6.0

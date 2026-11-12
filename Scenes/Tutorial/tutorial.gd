@@ -47,8 +47,6 @@ var _sword_queue: int = 0  # Acertos de espada ainda não classificados.
 var _droid_dead: bool = false  # O droide foi destruído.
 var _dust_clock: float = 0.0  # Intervalo da poeira dos passos.
 var _ghost_clock: float = 0.0  # Intervalo das imagens-fantasma.
-var _last_sword_button_msec: int = -100000  # Celular: quando o botão de espada foi tocado por último.
-var _melee_button_hits: int = 0  # Celular: espadadas que acertaram logo depois de tocar no botão de espada.
 var _weapon_swapped: bool = false  # Celular: o jogador trocou a arma na lição da troca.
 var _tilt_seen: Dictionary = {}  # Celular: direções de inclinação já feitas na lição do modo comando.
 
@@ -75,7 +73,6 @@ func _ready() -> void:
 	if Platform.is_mobile():  # Celular: os controles só aparecem junto com o jogador.
 		MobileControls.reset_state()
 		MobileControls.suspended = true
-		MobileControls.button_pressed.connect(_on_mobile_button)
 	arena.brightness = 0.04
 	arena.light_turned_on.connect(_on_light_on)
 	ui.skip_requested.connect(skip)
@@ -302,13 +299,14 @@ func _lesson_sword() -> void:
 	step = &"sword"
 	_melee_hits = 0
 	if Platform.is_mobile():
-		MobileControls.set_highlight(MobileLayout.SWORD)
+		MobileControls.weapon_ranged = false  # A lição anterior trocou a arma: o joystick direito golpeia.
+		MobileControls.set_highlight(MobileLayout.AIM)
 		ui.show_panel(&"m_sword", "Use o ataque de espada", "",
-				"Chegue perto do droide e toque no botão de espada.")
+				"Com a espada escolhida, chegue perto do droide e use o joystick direito.")
 	else:
 		ui.show_panel(&"mouse_left", "Clique com o botão ESQUERDO para atacar com a espada", "",
 				"Chegue perto do droide e golpeie na direção do cursor.")
-	while not _leaving and not _droid_dead and (_melee_button_hits if Platform.is_mobile() else _melee_hits) == 0:
+	while not _leaving and not _droid_dead and _melee_hits == 0:
 		await get_tree().process_frame
 	if _leaving:
 		return
@@ -389,11 +387,6 @@ func _lesson_command() -> void:
 		return
 	await ui.say("É assim que você usa as habilidades.")
 
-
-## Celular: guarda quando o botão de espada foi tocado (a lição da espada só conta golpes vindos dele).
-func _on_mobile_button(id: StringName) -> void:
-	if id == MobileLayout.SWORD:
-		_last_sword_button_msec = Time.get_ticks_msec()
 
 
 ## Apaga o destaque do controle (só no celular).
@@ -500,8 +493,6 @@ func _classify_hits() -> void:
 		return
 	var melee: int = mini(_sword_queue, _dealt_queue)
 	_melee_hits += melee
-	if melee > 0 and Time.get_ticks_msec() - _last_sword_button_msec < 1500:
-		_melee_button_hits += melee
 	_ranged_hits += _dealt_queue - melee
 	_dealt_queue = 0
 	_sword_queue = 0

@@ -16,8 +16,14 @@ extends Resource
 @export_range(1, 64, 1) var max_active: int = 20
 
 
-## Quantidade de cada tipo na wave `wave_number` (1 = primeira). Ex.: {"drone": 4, "robo": 2}.
+## Quantidade de cada tipo que NASCE na wave `wave_number` (1 = primeira), já com o multiplicador de inimigos
+## do autoload `Ondas`: max(1, ceil(original x 0,5)). Ex.: {"drone": 2, "robo": 1}.
 func get_counts(wave_number: int) -> Dictionary:
+	return Ondas.escalar_contagens(get_original_counts(wave_number))
+
+
+## Quantidade ESCRITA na tabela (antes do multiplicador). Ex.: {"drone": 4, "robo": 2}.
+func get_original_counts(wave_number: int) -> Dictionary:
 	var result: Dictionary = {}
 	if waves.is_empty():
 		return result

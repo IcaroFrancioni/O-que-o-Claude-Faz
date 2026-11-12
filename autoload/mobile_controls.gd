@@ -17,6 +17,8 @@ signal button_pressed(id: StringName)
 signal weapon_swapped(ranged: bool)
 ## O jogador tocou num botão do D-pad de fallback do quadro de comandos.
 signal dpad_pressed(dir: int)
+## O layout dos controles mudou (editor de HUD, restaurar padrão, área segura).
+signal layout_changed
 
 # Nomes das ações do Input Map que os toques viram (o Player lê essas mesmas ações).
 const ACT_LEFT: StringName = &"move_left"
@@ -40,9 +42,12 @@ const TAP_TIMEOUT_FRAMES: int = 20  # Quadros que um toque rápido espera o play
 const TAP_DELIVERED_FRAMES: int = 2  # Quadros seguidos com o player já atacando = toque entregue.
 const REPRESS_FRAMES: int = 2  # Quadros sem reação até soltar e apertar de novo.
 const SIM_FINGER: int = 99  # Dedo "virtual" do mouse (simulação no PC).
-const SWORD_TIMEOUT_FRAMES: int = 20  # Tempo que o botão de espada espera o player poder golpear.
 ## Espada no joystick: true = mira enquanto segura e golpeia ao soltar.
 const MELEE_ON_RELEASE: bool = true
+const INTERACT_ANIM_TIME: float = 0.15  # Duração (s) da entrada/saída do botão E.
+const INTERACT_ANIM_FRAMES: int = 3  # Quadros da entrada/saída do botão E.
+const INTERACT_ANIM_SCALE: Array[float] = [0.0, 0.62, 1.12, 1.0]  # Escala em cada quadro (o 2º passa um pouco: "pop").
+const INTERACT_ANIM_GLOW: Array[float] = [0.0, 0.9, 0.5, 0.0]  # Brilho dourado em cada quadro.
 const LAYER_CONTROLS: int = 60  # Camada dos controles (acima do jogo e da HUD).
 const LAYER_PAUSE: int = 110  # Camada do botão de pausa (acima do menu de pausa, que é 100).
 
@@ -58,6 +63,7 @@ var highlight: StringName = &""
 var edit_mode: bool = false
 ## Escondido de propósito (ex.: a abertura escura do tutorial, antes de o jogador aparecer).
 var suspended: bool = false
+var _suspenders: Dictionary = {}  # Quem pediu `suspend` (id -> true).
 
 var _shown: bool = false  # True enquanto os controles aparecem na tela.
 var _pause_shown: bool = false  # True enquanto o botão de pausa aparece.
@@ -68,9 +74,11 @@ var _canvas: Control = null  # Nó onde os controles são desenhados.
 var _pause_layer: CanvasLayer = null  # Camada própria do botão de pausa.
 var _pause_canvas: Control = null  # Desenho do botão de pausa.
 var _terminals: Array[Node] = []  # Terminais da Fase 2 (para o botão E).
+var _lab_huds: Array[Node] = []  # HUDs do labirinto: a dica "[E] ..." delas também liga o botão E (portas e painéis).
 var _hud: GameHUD = null  # HUD da fase (as barras de status seguem o layout).
 var _bar_native: Dictionary = {}  # Barra -> tamanho original.
 var _hl_clock: float = 0.0  # Relógio do pisca de destaque.
+var _interact_anim: float = 0.0  # 0 = botão E escondido, 1 = inteiro.
 var _safe_clock: float = 0.0  # Relógio da conferência da área segura.
 
 var _fingers: Dictionary[int, StringName] = { }  # dedo -> papel (id do controle)
@@ -86,7 +94,6 @@ var _tap_frames_left: int = 0
 var _tap_delivered_frames: int = 0
 var _repress_counter: int = 0
 var _dash_frames: int = 0
-var _sword_pending: int = 0  # Quadros restantes do golpe pedido pelo botão de espada.
 var _pressed_roles: Dictionary[StringName, bool] = { }
 var _act_state: Dictionary[StringName, bool] = { }
 var _view: Vector2 = Vector2(1152.0, 648.0)
@@ -136,6 +143,9 @@ func _ready() -> void:
 	TiltInput.arrow.connect(_on_tilt_arrow)
 	get_tree().node_added.connect(_on_node_added)
 	get_viewport().size_changed.connect(_update_layout)
+	Platform.safe_area_changed.connect(func() -> void:
+		_update_layout()
+		refresh_layout())
 	_update_layout()
 	_scan_existing_nodes.call_deferred()
 
@@ -179,7 +189,7 @@ func control_rect(id: StringName) -> Rect2:
 
 ## Escala efetiva (layout x ajuste à proporção da tela) do controle `id`.
 func control_scale(id: StringName) -> float:
-	return layout.effective_scale(id, _view)
+	return layout.effective_scale(id, _view, _margins)
 
 
 ## Tamanho lógico da tela e margens seguras (o editor e o quadro usam).
@@ -203,7 +213,9 @@ func is_control_active(id: StringName) -> bool:
 ## Depois de mudar o layout (editor, restaurar padrão): reposiciona barras de status, quadro e redesenha.
 func refresh_layout() -> void:
 	_update_layout()
-	_adapt_hud(_hud)
+	if is_instance_valid(_hud):
+		_adapt_hud(_hud)
+	layout_changed.emit()
 	get_tree().call_group(&"mobile_layout_listeners", &"on_mobile_layout_changed")
 
 
@@ -293,12 +305,27 @@ func _scan_existing_nodes() -> void:
 func _on_node_added(node: Node) -> void:
 	if node is QuizTerminal:
 		_terminals.append(node)
+	elif node is LabHud:
+		_lab_huds.append(node)
 	elif node is GameHUD:
 		_adapt_hud.call_deferred(node)
 
 
+## Telas modais (diálogos, cutscenes) pedem para esconder os controles e a pausa enquanto estão abertas.
+func suspend(holder: Object) -> void:
+	_suspenders[holder.get_instance_id()] = true
+
+
+func resume(holder: Object) -> void:
+	_suspenders.erase(holder.get_instance_id())
+
+
+func is_suspended() -> bool:
+	return suspended or not _suspenders.is_empty()
+
+
 func _wants_to_show() -> bool:
-	if edit_mode or suspended or _blocked or get_tree().paused:
+	if edit_mode or is_suspended() or _blocked or get_tree().paused:
 		return false
 	return _player_alive()
 
@@ -311,7 +338,7 @@ func _player_alive() -> bool:
 
 ## O botão de pausa aparece em jogo, também por cima de qualquer painel.
 func _wants_pause_button() -> bool:
-	return not edit_mode and not suspended and not _blocked and _player_alive()
+	return not edit_mode and not is_suspended() and not _blocked and _player_alive()
 
 
 func _set_shown(value: bool) -> void:
@@ -336,19 +363,11 @@ func _update_layout() -> void:
 
 ## Margens (px de tela lógica) das áreas que o celular reserva: notch, cantos arredondados, barra de gestos.
 func _compute_safe_margins() -> Vector4:
-	if not Platform.is_real_device():
-		return Vector4.ZERO
-	var window: Vector2 = Vector2(DisplayServer.window_get_size())
-	var screen: Vector2 = Vector2(DisplayServer.screen_get_size())
-	var safe: Rect2i = DisplayServer.get_display_safe_area()
-	if window.x <= 0.0 or screen.x <= 0.0 or safe.size.x <= 0:
-		return Vector4.ZERO
-	var k: float = _view.x / window.x
-	return Vector4(float(safe.position.x) * k, float(safe.position.y) * k,
-			maxf(screen.x - float(safe.end.x), 0.0) * k, maxf(screen.y - float(safe.end.y), 0.0) * k)
+	return Platform.get_safe_margins()
 
 
-## As barras de vida/escudo seguem o layout (posição e escala do controle "status").
+## As barras de vida/escudo e a barra de XP seguem o layout (posição e escala do controle "status"), sempre
+## inteiras dentro da área segura: o emblema da barra de XP, que no computador passa da borda da barra, aqui desce.
 func _adapt_hud(hud: GameHUD) -> void:
 	if not is_instance_valid(hud):
 		return
@@ -356,6 +375,7 @@ func _adapt_hud(hud: GameHUD) -> void:
 	var rect: Rect2 = layout.get_rect(MobileLayout.STATUS, _view, _margins)
 	var s: float = layout.get_scale(MobileLayout.STATUS)
 	var y: float = 0.0
+	var bars_width: float = 0.0
 	for bar: Control in [hud.player_health_bar, hud.charge_bar]:
 		if bar == null:
 			continue
@@ -368,15 +388,42 @@ func _adapt_hud(hud: GameHUD) -> void:
 		bar.offset_top = rect.position.y + y
 		bar.offset_right = bar.offset_left + native.x * s
 		bar.offset_bottom = bar.offset_top + native.y * s
+		bars_width = maxf(bars_width, native.x)
 		y += (native.y + 8.0) * s
+	var xp: XpBar = hud.get_node_or_null(^"Root/XpBar") as XpBar
+	if xp != null and bars_width > 0.0:
+		var top: float = -XpBar.V_EMBLEM_POS.y  # o emblema sobe isto acima da barra
+		var left: float = XpBar.GAP - XpBar.V_EMBLEM_POS.x  # e passa isto para a esquerda
+		xp.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		xp.scale = Vector2(s, s)
+		xp.position = rect.position + Vector2(bars_width + left, top) * s
+		xp.size = Vector2(XpBar.THICKNESS, MobileLayout.DEFS[MobileLayout.STATUS]["size"].y - top)
 
 
 func _button_enabled(id: StringName) -> bool:
 	return id != MobileLayout.INTERACT or _interact_available()
 
 
-## Algum terminal da Fase 2 está com a dica "[E]" visível?
+## Entrada/saída do botão E em 3 quadros (escala + brilho), sem atrasar o toque: o botão já responde no 1º quadro.
+func _step_interact_anim(delta: float) -> void:
+	var target: float = 1.0 if (_shown and _interact_available()) else 0.0
+	_interact_anim = move_toward(_interact_anim, target, delta / INTERACT_ANIM_TIME)
+
+
+## Quadro atual da animação do botão E: 0 = escondido, 1..INTERACT_ANIM_FRAMES = entrando/saindo, o último = parado.
+func interact_anim_frame() -> int:
+	return ceili(_interact_anim * float(INTERACT_ANIM_FRAMES) - 0.0001)
+
+
+## Há um objeto interativo ao alcance? É a MESMA condição que mostra o aviso da tecla E no computador:
+## a dica "[E]" de um terminal do quiz ou da HUD do labirinto (portas e painéis) está visível.
 func _interact_available() -> bool:
+	for hud: Node in _lab_huds:
+		if not is_instance_valid(hud) or not hud.is_inside_tree():
+			continue
+		var label: Label = (hud as LabHud).prompt_label
+		if label != null and label.is_visible_in_tree():
+			return true
 	for terminal: Node in _terminals:
 		if not is_instance_valid(terminal) or not terminal.is_inside_tree():
 			continue
@@ -399,7 +446,7 @@ func dpad_wanted() -> bool:
 func dpad_buttons() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	var rect: Rect2 = control_rect(MobileLayout.BOARD)
-	var s: float = layout.effective_scale(MobileLayout.BOARD, _view)
+	var s: float = layout.effective_scale(MobileLayout.BOARD, _view, _margins)
 	var origin: Vector2 = rect.position + CommandBoard.DPAD_CENTER * s
 	var cell: float = CommandBoard.DPAD_CELL * s
 	var offsets: Dictionary = {
@@ -479,7 +526,7 @@ func _press(index: int, pos: Vector2) -> bool:
 		return true
 	if not _shown:
 		return false
-	for id: StringName in [MobileLayout.COMMAND, MobileLayout.WEAPON, MobileLayout.SWORD, MobileLayout.DASH, MobileLayout.INTERACT]:
+	for id: StringName in [MobileLayout.COMMAND, MobileLayout.WEAPON, MobileLayout.DASH, MobileLayout.INTERACT]:
 		if not _button_enabled(id):
 			continue
 		if pos.distance_to(control_center(id)) <= control_radius(id) * HIT_SLACK:
@@ -581,8 +628,6 @@ func _button_down(id: StringName) -> void:
 		MobileLayout.DASH:
 			_set_action(ACT_DASH, true)
 			_dash_frames = DASH_HOLD_FRAMES
-		MobileLayout.SWORD:
-			_sword_press()
 		MobileLayout.PAUSE:
 			_tap_action(ACT_PAUSE)
 		MobileLayout.INTERACT:
@@ -590,16 +635,6 @@ func _button_down(id: StringName) -> void:
 		MobileLayout.COMMAND:
 			_command_press()
 	button_pressed.emit(id)
-
-
-## Botão de espada: golpeia na direção do inimigo mais próximo (ou na última mira / de frente).
-func _sword_press() -> void:
-	var auto: Vector2 = _nearest_enemy_direction(_player_position())
-	if auto != Vector2.ZERO:
-		_aim_dir = auto
-	elif _aim_dir == Vector2.ZERO and is_instance_valid(_player):
-		_aim_dir = _player.facing_direction
-	_sword_pending = SWORD_TIMEOUT_FRAMES
 
 
 ## Botão de modo comando: abre/fecha o modo (as setas vêm da inclinação do celular).
@@ -633,6 +668,7 @@ func _physics_process(_delta: float) -> void:
 
 func _process(delta: float) -> void:
 	_hl_clock += delta
+	_step_interact_anim(delta)
 	if Platform.is_real_device():  # girar 180 graus troca o lado do notch sem mudar o tamanho da janela
 		_safe_clock += delta
 		if _safe_clock >= 0.5:
@@ -701,13 +737,6 @@ func _apply_attack() -> void:
 	else:
 		_set_action(ACT_SHOOT, false)
 		swing = _tap_pending if MELEE_ON_RELEASE else holding
-	# Botão de espada: pede golpe até o player entrar no golpe.
-	if _sword_pending > 0:
-		_sword_pending -= 1
-		if is_instance_valid(_player) and _player.state == Player.State.ATTACK_MELEE:
-			_sword_pending = 0
-		else:
-			swing = true
 	_set_action(ACT_MELEE, swing and not _act_state.get(ACT_MELEE, false))
 
 
@@ -758,7 +787,6 @@ func _release_all() -> void:
 	_aim_down = false
 	_tap_pending = false
 	_dash_frames = 0
-	_sword_pending = 0
 
 
 func _player_position() -> Vector2:
@@ -799,12 +827,19 @@ func _draw_controls() -> void:
 	var move_r: float = control_radius(MobileLayout.MOVE)
 	MobileDraw.stick(_canvas, control_center(MobileLayout.MOVE), move_r, _move_vec.limit_length(1.0) * move_r * 0.62, _move_finger != -1)
 	var aim_r: float = control_radius(MobileLayout.AIM)
-	MobileDraw.stick(_canvas, control_center(MobileLayout.AIM), aim_r, _aim_vec.limit_length(1.0) * aim_r * 0.62, _aim_finger != -1)
-	for id: StringName in [MobileLayout.SWORD, MobileLayout.DASH, MobileLayout.WEAPON, MobileLayout.COMMAND, MobileLayout.INTERACT]:
-		if not _button_enabled(id):
-			continue
+	# A bolinha do joystick direito mostra a arma atual (o botão de trocar arma alterna entre tiro e espada).
+	MobileDraw.stick(_canvas, control_center(MobileLayout.AIM), aim_r, _aim_vec.limit_length(1.0) * aim_r * 0.62, _aim_finger != -1,
+			"ic_shot.png" if weapon_ranged else "ic_sword.png")
+	for id: StringName in [MobileLayout.DASH, MobileLayout.WEAPON, MobileLayout.COMMAND]:
 		var active: bool = id == MobileLayout.COMMAND and _command_open()
 		MobileDraw.button(_canvas, control_center(id), control_radius(id), id, _pressed_roles.get(id, false), active)
+	var frame: int = interact_anim_frame()
+	if frame > 0:  # botão E: aparece/some em 3 quadros de escala e brilho
+		var center: Vector2 = control_center(MobileLayout.INTERACT)
+		var radius: float = control_radius(MobileLayout.INTERACT) * INTERACT_ANIM_SCALE[frame]
+		MobileDraw.button(_canvas, center, radius, MobileLayout.INTERACT, _pressed_roles.get(MobileLayout.INTERACT, false))
+		if INTERACT_ANIM_GLOW[frame] > 0.0:
+			_canvas.draw_arc(center, radius + 3.0, 0.0, TAU, 40, Color(MobileDraw.COLOR_SELECTED, INTERACT_ANIM_GLOW[frame]), 4.0, true)
 	if highlight != &"" and highlight != MobileLayout.PAUSE:
 		_draw_highlight(_canvas)
 

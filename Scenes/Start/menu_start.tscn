@@ -102,12 +102,6 @@ theme_type_variation = &"DangerButton"
 text = "Sair"
 script = ExtResource("7_quit")
 
-[node name="Hint" type="Label" parent="Center/Column" unique_id=2118020964]
-layout_mode = 2
-theme_type_variation = &"HintLabel"
-text = "W / S ou setas para navegar  -  Enter para confirmar"
-horizontal_alignment = 1
-
 [node name="AudioStreamPlayer" type="AudioStreamPlayer" parent="." unique_id=826377707]
 stream = ExtResource("8_music")
 autoplay = true

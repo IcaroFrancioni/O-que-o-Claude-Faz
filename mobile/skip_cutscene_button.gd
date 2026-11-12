@@ -6,8 +6,9 @@ extends PixelButton
 ## Texto do botão.
 const LABEL: String = "Avançar cutscene"
 const FONT_SIZE: int = 26  # Tamanho da fonte (múltiplo do pixel da fonte do jogo).
-const SIZE: Vector2 = Vector2(264.0, 56.0)  # Tamanho mínimo (toque confortável).
+const SIZE: Vector2 = Vector2(264.0, 72.0)  # Tamanho mínimo (toque confortável).
 const MARGIN: float = 16.0  # Distância das bordas (canto superior direito).
+const GAP: float = 10.0  # Folga entre este botão e o de pausa.
 
 ## O jogador tocou no botão.
 signal skip_requested
@@ -37,4 +38,28 @@ static func attach(parent: Node, on_press: Callable) -> SkipCutsceneButton:
 		button.skip_requested.emit()
 		on_press.call())
 	parent.add_child(button)
+	SafeArea.fit(button)  # fora do notch e das barras
+	button._avoid_pause()
+	Platform.safe_area_changed.connect(button._avoid_pause)
+	button.tree_exiting.connect(func() -> void:
+		if Platform.safe_area_changed.is_connected(button._avoid_pause):
+			Platform.safe_area_changed.disconnect(button._avoid_pause))
 	return button
+
+
+## O botão de pausa fica por cima de tudo no canto superior direito: o "Avançar cutscene" se encosta à esquerda dele
+## (ou onde o jogador o tiver colocado pelo editor de HUD) em vez de ficar por baixo.
+func _avoid_pause() -> void:
+	if not is_inside_tree():
+		return
+	SafeArea.fit(self)  # volta ao lugar de fábrica (canto superior direito da área segura) antes de medir
+	var pause: Rect2 = MobileControls.control_rect(MobileLayout.PAUSE).grow(GAP)
+	var mine: Rect2 = get_global_rect()
+	if not mine.intersects(pause):
+		return
+	var target: float = pause.position.x - mine.size.x  # à esquerda da pausa
+	if target < Platform.get_safe_rect().position.x:  # pausa movida para a esquerda pelo jogador: vai para a direita dela
+		target = minf(pause.end.x, Platform.get_safe_rect().end.x - mine.size.x)
+	var delta: float = target - mine.position.x
+	offset_left += delta
+	offset_right += delta

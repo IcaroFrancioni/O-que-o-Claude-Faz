@@ -18,12 +18,16 @@ const MUSIC_LABEL: String = "Música principal"
 const PANEL_WIDTH: float = 400.0
 const BUTTON_HEIGHT: float = 56.0
 const SLIDER_HEIGHT: float = 24.0
+const PANEL_RESERVE: float = 88.0  # Celular: altura reservada para as bordas do painel e as margens da tela.
 const PERCENT_WIDTH: float = 72.0
 
+## Onde as linhas entram: o próprio painel no computador; no celular, uma coluna dentro de uma caixa de rolagem.
+var _body: Control = self
 var _sliders: Array[HSlider] = []  # Sliders de volume.
 var _back_button: PixelButton = null  # Botão "Voltar".
 # Celular: página do acelerômetro (sensibilidade, zona morta, intervalo e calibração).
 var _tilt_page: VBoxContainer = null
+var _tilt_button: PixelButton = null  # Botão "Acelerômetro" (só aparece com sensor presente).
 var _audio_children: Array[Node] = []  # Peças da página de áudio (escondidas na página do acelerômetro).
 var _calibrate_label: Label = null
 var _calibrate_token: int = 0
@@ -33,14 +37,19 @@ var _preview: TiltPreview = null
 ## Monta a tela: título, dois sliders de volume e o botão de voltar.
 func _ready() -> void:
 	custom_minimum_size.x = PANEL_WIDTH  # Largura mínima.
+	if Platform.is_mobile():  # No celular o conteúdo rola por toque quando não cabe na área segura.
+		_body = VBoxContainer.new()
+		_body.name = "Body"
+		_body.add_theme_constant_override(&"separation", Palette.UNIT * 2)
+		add_child(ScrollFit.new(_body, PANEL_RESERVE))
 	add_theme_constant_override(&"separation", Palette.UNIT * 2)  # Espaço entre os blocos.
 
 	var title: Label = Label.new()  # Título.
 	title.text = TITLE
 	title.theme_type_variation = &"PanelTitleLabel"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	add_child(title)
-	add_child(HSeparator.new())  # Linha separadora.
+	_body.add_child(title)
+	_body.add_child(HSeparator.new())  # Linha separadora.
 
 	_add_slider_row(SFX_LABEL, &"SFX")  # Slider dos efeitos sonoros.
 	_add_slider_row(MUSIC_LABEL, &"Music")  # Slider da música.
@@ -51,16 +60,26 @@ func _ready() -> void:
 		tilt_button.text = TILT_BUTTON_TEXT
 		tilt_button.custom_minimum_size.y = BUTTON_HEIGHT
 		tilt_button.pressed.connect(_show_tilt_page.bind(true))
-		add_child(tilt_button)
-	add_child(HSeparator.new())
+		_body.add_child(tilt_button)
+		_tilt_button = tilt_button
+		# Sem acelerômetro, nada de "Calibrar", sensibilidade, zona morta ou intervalo: o botão some.
+		visibility_changed.connect(_refresh_tilt_availability)
+		TiltInput.sensor_state_changed.connect(func(_on: bool) -> void: _refresh_tilt_availability())
+		_refresh_tilt_availability()
+	_body.add_child(HSeparator.new())
 	_back_button = PixelButton.new()  # Botão de voltar.
 	_back_button.text = BACK_TEXT
 	_back_button.custom_minimum_size.y = BUTTON_HEIGHT
 	_back_button.pressed.connect(_on_back_pressed)  # Voltar avisa quem usa a tela.
-	add_child(_back_button)
-	_audio_children = get_children()
+	_body.add_child(_back_button)
+	_audio_children = _body.get_children()
 	if Platform.is_mobile():
 		_build_tilt_page()
+
+
+## Altura do slider: no celular a faixa de toque tem o tamanho mínimo de um alvo de toque.
+func _slider_height() -> float:
+	return Platform.MIN_TOUCH if Platform.is_mobile() else SLIDER_HEIGHT
 
 
 ## Dá o foco ao primeiro slider (para navegar sem mouse).
@@ -75,7 +94,7 @@ func focus_first() -> void:
 func _add_slider_row(label_text: String, bus: StringName) -> void:
 	var row: VBoxContainer = VBoxContainer.new()  # Coluna da linha.
 	row.add_theme_constant_override(&"separation", Palette.UNIT)
-	add_child(row)
+	_body.add_child(row)
 
 	var header: HBoxContainer = HBoxContainer.new()  # Cabeçalho com rótulo e porcentagem.
 	row.add_child(header)
@@ -92,7 +111,7 @@ func _add_slider_row(label_text: String, bus: StringName) -> void:
 	slider.min_value = 0.0
 	slider.max_value = 100.0
 	slider.step = 1.0
-	slider.custom_minimum_size.y = SLIDER_HEIGHT
+	slider.custom_minimum_size.y = _slider_height()
 	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	slider.focus_mode = Control.FOCUS_ALL  # Aceita foco do teclado.
 	# Valor inicial ANTES de conectar o sinal: abrir a tela não deve regravar o volume.
@@ -129,7 +148,7 @@ func _build_tilt_page() -> void:
 	_tilt_page.name = "TiltPage"
 	_tilt_page.visible = false
 	_tilt_page.add_theme_constant_override(&"separation", Palette.UNIT)
-	add_child(_tilt_page)
+	_body.add_child(_tilt_page)
 	var title: Label = Label.new()
 	title.text = TILT_TITLE
 	title.theme_type_variation = &"PanelTitleLabel"
@@ -146,6 +165,8 @@ func _build_tilt_page() -> void:
 	auto_check.text = "Calibrar ao abrir o modo comando"
 	auto_check.button_pressed = TiltInput.auto_calibrate
 	auto_check.focus_mode = Control.FOCUS_NONE
+	auto_check.custom_minimum_size.y = Platform.MIN_TOUCH
+	auto_check.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	auto_check.toggled.connect(func(on: bool) -> void:
 		TiltInput.auto_calibrate = on
 		TiltInput.save_settings())
@@ -198,7 +219,7 @@ func _add_tilt_slider(label_text: String, min_v: float, max_v: float, step_v: fl
 	slider.min_value = min_v
 	slider.max_value = max_v
 	slider.step = step_v
-	slider.custom_minimum_size.y = SLIDER_HEIGHT
+	slider.custom_minimum_size.y = _slider_height()
 	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	slider.focus_mode = Control.FOCUS_ALL
 	slider.value = value
@@ -210,10 +231,22 @@ func _add_tilt_slider(label_text: String, min_v: float, max_v: float, step_v: fl
 	row.add_child(slider)
 
 
+## Esconde tudo do acelerômetro quando o aparelho não tem o sensor (e volta à página de áudio se ela estava aberta).
+func _refresh_tilt_availability() -> void:
+	if _tilt_button == null:
+		return
+	var has_sensor: bool = TiltInput.has_sensor()
+	if not has_sensor and _tilt_page != null and _tilt_page.visible:
+		_show_tilt_page(false)
+	_tilt_button.visible = has_sensor and (_tilt_page == null or not _tilt_page.visible)
+
+
 ## Mostra a página do acelerômetro (true) ou volta à de áudio (false).
 func _show_tilt_page(show: bool) -> void:
 	for child: Node in _audio_children:
 		(child as Control).visible = not show
+	if not show and _tilt_button != null:
+		_tilt_button.visible = TiltInput.has_sensor()
 	_tilt_page.visible = show
 	if show:
 		TiltInput.acquire(self)  # liga o indicador ao vivo

@@ -103,7 +103,7 @@ func rodar() -> void:
 	check(pause_menu.get_node_or_null("Root/Center/Panel/MainPage/EditControlsButton") == null, "o menu de pausa não tem 'Editar controles'")
 	check(pause_menu.get_node_or_null("MobileHudEditor") == null, "o menu de pausa não tem editor de HUD")
 	var settings: SettingsPanel = pause_menu.get_node("Root/Center/Panel").find_children("*", "SettingsPanel", true, false)[0] as SettingsPanel
-	check(settings.get_node_or_null("TiltButton") == null and settings.get_node_or_null("TiltPage") == null, "as configurações não mostram o acelerômetro")
+	check(settings.find_child("TiltButton", true, false) == null and settings.find_child("TiltPage", true, false) == null, "as configurações não mostram o acelerômetro")
 	_action(&"Pause")
 	await frames(10)
 	check(not get_tree().paused, "ESC fecha o menu")
