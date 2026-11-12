@@ -20,3 +20,5 @@ testes/capturas/*.uid
 
 # Documentos de trabalho (não fazem parte do jogo)
 entrega/
+testes/capturas/**/*.import
+testes/capturas/**/*.uid

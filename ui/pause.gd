@@ -38,6 +38,7 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS  # continua ouvindo a tecla com o jogo pausado
 	visible = false  # Começa escondido.
 	_dim.color = Palette.dim_color()  # Fundo escurecido.
+	SafeArea.fit($Root/Center)  # Celular: o menu fica centralizado na área segura (fora do notch e das barras).
 	_settings = SettingsPanel.new()  # Cria a página de configurações.
 	_settings.visible = false  # Começa escondida.
 	_panel.add_child(_settings)  # Entra no painel.

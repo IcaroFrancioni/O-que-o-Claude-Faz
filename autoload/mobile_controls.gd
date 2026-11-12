@@ -17,6 +17,8 @@ signal button_pressed(id: StringName)
 signal weapon_swapped(ranged: bool)
 ## O jogador tocou num botão do D-pad de fallback do quadro de comandos.
 signal dpad_pressed(dir: int)
+## O layout dos controles mudou (editor de HUD, restaurar padrão, área segura).
+signal layout_changed
 
 # Nomes das ações do Input Map que os toques viram (o Player lê essas mesmas ações).
 const ACT_LEFT: StringName = &"move_left"
@@ -62,6 +64,7 @@ var highlight: StringName = &""
 var edit_mode: bool = false
 ## Escondido de propósito (ex.: a abertura escura do tutorial, antes de o jogador aparecer).
 var suspended: bool = false
+var _suspenders: Dictionary = {}  # Quem pediu `suspend` (id -> true).
 
 var _shown: bool = false  # True enquanto os controles aparecem na tela.
 var _pause_shown: bool = false  # True enquanto o botão de pausa aparece.
@@ -188,7 +191,7 @@ func control_rect(id: StringName) -> Rect2:
 
 ## Escala efetiva (layout x ajuste à proporção da tela) do controle `id`.
 func control_scale(id: StringName) -> float:
-	return layout.effective_scale(id, _view)
+	return layout.effective_scale(id, _view, _margins)
 
 
 ## Tamanho lógico da tela e margens seguras (o editor e o quadro usam).
@@ -212,7 +215,9 @@ func is_control_active(id: StringName) -> bool:
 ## Depois de mudar o layout (editor, restaurar padrão): reposiciona barras de status, quadro e redesenha.
 func refresh_layout() -> void:
 	_update_layout()
-	_adapt_hud(_hud)
+	if is_instance_valid(_hud):
+		_adapt_hud(_hud)
+	layout_changed.emit()
 	get_tree().call_group(&"mobile_layout_listeners", &"on_mobile_layout_changed")
 
 
@@ -308,8 +313,21 @@ func _on_node_added(node: Node) -> void:
 		_adapt_hud.call_deferred(node)
 
 
+## Telas modais (diálogos, cutscenes) pedem para esconder os controles e a pausa enquanto estão abertas.
+func suspend(holder: Object) -> void:
+	_suspenders[holder.get_instance_id()] = true
+
+
+func resume(holder: Object) -> void:
+	_suspenders.erase(holder.get_instance_id())
+
+
+func is_suspended() -> bool:
+	return suspended or not _suspenders.is_empty()
+
+
 func _wants_to_show() -> bool:
-	if edit_mode or suspended or _blocked or get_tree().paused:
+	if edit_mode or is_suspended() or _blocked or get_tree().paused:
 		return false
 	return _player_alive()
 
@@ -322,7 +340,7 @@ func _player_alive() -> bool:
 
 ## O botão de pausa aparece em jogo, também por cima de qualquer painel.
 func _wants_pause_button() -> bool:
-	return not edit_mode and not suspended and not _blocked and _player_alive()
+	return not edit_mode and not is_suspended() and not _blocked and _player_alive()
 
 
 func _set_shown(value: bool) -> void:
@@ -350,7 +368,8 @@ func _compute_safe_margins() -> Vector4:
 	return Platform.get_safe_margins()
 
 
-## As barras de vida/escudo seguem o layout (posição e escala do controle "status").
+## As barras de vida/escudo e a barra de XP seguem o layout (posição e escala do controle "status"), sempre
+## inteiras dentro da área segura: o emblema da barra de XP, que no computador passa da borda da barra, aqui desce.
 func _adapt_hud(hud: GameHUD) -> void:
 	if not is_instance_valid(hud):
 		return
@@ -358,6 +377,7 @@ func _adapt_hud(hud: GameHUD) -> void:
 	var rect: Rect2 = layout.get_rect(MobileLayout.STATUS, _view, _margins)
 	var s: float = layout.get_scale(MobileLayout.STATUS)
 	var y: float = 0.0
+	var bars_width: float = 0.0
 	for bar: Control in [hud.player_health_bar, hud.charge_bar]:
 		if bar == null:
 			continue
@@ -370,7 +390,16 @@ func _adapt_hud(hud: GameHUD) -> void:
 		bar.offset_top = rect.position.y + y
 		bar.offset_right = bar.offset_left + native.x * s
 		bar.offset_bottom = bar.offset_top + native.y * s
+		bars_width = maxf(bars_width, native.x)
 		y += (native.y + 8.0) * s
+	var xp: XpBar = hud.get_node_or_null(^"Root/XpBar") as XpBar
+	if xp != null and bars_width > 0.0:
+		var top: float = -XpBar.V_EMBLEM_POS.y  # o emblema sobe isto acima da barra
+		var left: float = XpBar.GAP - XpBar.V_EMBLEM_POS.x  # e passa isto para a esquerda
+		xp.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		xp.scale = Vector2(s, s)
+		xp.position = rect.position + Vector2(bars_width + left, top) * s
+		xp.size = Vector2(XpBar.THICKNESS, MobileLayout.DEFS[MobileLayout.STATUS]["size"].y - top)
 
 
 func _button_enabled(id: StringName) -> bool:
@@ -419,7 +448,7 @@ func dpad_wanted() -> bool:
 func dpad_buttons() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	var rect: Rect2 = control_rect(MobileLayout.BOARD)
-	var s: float = layout.effective_scale(MobileLayout.BOARD, _view)
+	var s: float = layout.effective_scale(MobileLayout.BOARD, _view, _margins)
 	var origin: Vector2 = rect.position + CommandBoard.DPAD_CENTER * s
 	var cell: float = CommandBoard.DPAD_CELL * s
 	var offsets: Dictionary = {

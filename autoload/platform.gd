@@ -28,6 +28,9 @@ const MOBILE_SPRITE_SCALE: float = 1.5
 const MOBILE_CAMERA_ZOOM: float = 2.0
 ## Carga mínima de um tiro dado só com um toque rápido (0.0 a 1.0).
 const MOBILE_MIN_SHOT_CHARGE: float = 0.2
+## Menor lado de um alvo de toque (botões de menu, sliders), em px lógicos: equivale a ~48 dp num celular em
+## paisagem (tela lógica de 648 px de altura para ~430 dp => 1 dp ~ 1,5 px lógico).
+const MIN_TOUCH: float = 72.0
 
 ## Nomes de plataforma devolvidos por `platform_name()`.
 const ANDROID: String = "android"
@@ -89,6 +92,8 @@ func _ready() -> void:
 	# Só mexe na tela em aparelhos de verdade, não na simulação do PC.
 	if _mobile and not simulated and is_real_device():
 		DisplayServer.screen_set_keep_on(true)  # a tela não apaga no meio da partida
+	if _mobile:  # a área segura em px lógicos muda quando a janela muda de tamanho
+		get_tree().root.size_changed.connect(func() -> void: safe_area_changed.emit())
 
 
 ## True em celular/tablet (Android, iOS, iPad) ou com `--mobile`.
@@ -162,7 +167,7 @@ func get_safe_rect() -> Rect2:
 ## Recuos da área segura em px lógicos: esquerda, topo, direita, base.
 func get_safe_margins() -> Vector4:
 	var view: Vector2 = _view_size()
-	var window: Vector2 = Vector2(DisplayServer.window_get_size())
+	var window: Vector2 = _window_size()
 	if window.x <= 0.0 or window.y <= 0.0:
 		return Vector4.ZERO
 	var k: Vector2 = view / window  # px da janela -> px lógicos
@@ -183,6 +188,14 @@ func get_safe_margins() -> Vector4:
 func set_safe_insets_override(insets: Variant) -> void:
 	_safe_override = insets
 	safe_area_changed.emit()
+
+
+## Tamanho da janela em px reais (a raiz da árvore; vale também em headless, onde não há janela do sistema).
+func _window_size() -> Vector2:
+	var tree: SceneTree = Engine.get_main_loop() as SceneTree
+	if tree == null or tree.root == null:
+		return Vector2(DisplayServer.window_get_size())
+	return Vector2(tree.root.size)
 
 
 func _view_size() -> Vector2:

@@ -16,6 +16,8 @@ var _tween: Tween = null  # Animação do aviso (guardada para cancelar).
 
 ## Começa limpa.
 func _ready() -> void:
+	SafeArea.fit(get_node_or_null(^"Raiz") as Control)  # Celular: textos dentro da área segura.
+	SafeArea.stack_top_band(get_node_or_null(^"Raiz") as Control, [objetivo, maquinas])  # fora das barras de status
 	if aviso != null:
 		aviso.modulate.a = 0.0
 	if maquinas != null:

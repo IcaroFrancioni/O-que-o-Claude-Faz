@@ -14,7 +14,7 @@ const WEAPON: StringName = &"weapon"  # Botão de trocar arma.
 const COMMAND: StringName = &"command"  # Botão do modo comando.
 const PAUSE: StringName = &"pause"  # Botão de pausa.
 const INTERACT: StringName = &"interact"  # Botão E temporário (aparece com um objeto interativo ao alcance), logo acima do modo comando.
-const STATUS: StringName = &"status"  # Barras de vida e escudo.
+const STATUS: StringName = &"status"  # Barras de vida e escudo + barra de XP ao lado.
 const BOARD: StringName = &"board"  # Quadro de comandos.
 
 ## Todos os controles editáveis, na ordem de desenho/teste.
@@ -43,8 +43,8 @@ const DEFS: Dictionary = {
 	WEAPON: {"pos": Vector2(0.690, 0.660), "size": Vector2(94.0, 94.0), "circle": true},
 	COMMAND: {"pos": Vector2(0.725, 0.500), "size": Vector2(94.0, 94.0), "circle": true},
 	INTERACT: {"pos": Vector2(0.725, 0.340), "size": Vector2(94.0, 94.0), "circle": true},
-	PAUSE: {"pos": Vector2(0.964, 0.065), "size": Vector2(62.0, 62.0), "circle": true},
-	STATUS: {"pos": Vector2(0.104, 0.127), "size": Vector2(264.0, 148.0), "circle": false},
+	PAUSE: {"pos": Vector2(0.960, 0.070), "size": Vector2(72.0, 72.0), "circle": true},
+	STATUS: {"pos": Vector2(0.134, 0.127), "size": Vector2(352.0, 148.0), "circle": false},
 	BOARD: {"pos": Vector2(0.898, 0.2785), "size": Vector2(299.0, 361.0), "circle": false},
 }
 
@@ -106,18 +106,18 @@ func get_scale(id: StringName) -> float:
 	return _scale[id]
 
 
-## Escala efetiva: a do layout, e o quadro de comandos ainda encolhe em telas mais estreitas que o print (ex.: tablet 4:3)
-## para continuar dentro da região x >= 0,78 da largura.
-func effective_scale(id: StringName, view: Vector2 = REF_VIEW) -> float:
+## Escala efetiva: a do layout, e o quadro de comandos ainda encolhe quando a área segura é mais estreita que o
+## print (ex.: tablet 4:3, notch) para continuar dentro da região x >= 0,78 da largura.
+func effective_scale(id: StringName, view: Vector2 = REF_VIEW, margins: Vector4 = Vector4.ZERO) -> float:
 	var s: float = float(_scale[id])
 	if id == BOARD:
-		s *= minf(1.0, view.x / REF_VIEW.x)
+		s *= minf(1.0, (view.x - margins.x - margins.z) / REF_VIEW.x)
 	return s
 
 
 ## Tamanho em px com a escala atual (e a proporção da tela `view`).
-func get_size(id: StringName, view: Vector2 = REF_VIEW) -> Vector2:
-	return (DEFS[id]["size"] as Vector2) * effective_scale(id, view)
+func get_size(id: StringName, view: Vector2 = REF_VIEW, margins: Vector4 = Vector4.ZERO) -> Vector2:
+	return (DEFS[id]["size"] as Vector2) * effective_scale(id, view, margins)
 
 
 ## Raio (px) dos controles redondos.
@@ -129,25 +129,30 @@ func is_circle(id: StringName) -> bool:
 	return DEFS[id]["circle"]
 
 
-## Centro em px da tela lógica `view`, dentro da área segura `margins` (esquerda, topo, direita, base).
+## Centro em px da tela lógica `view`. A proporção guardada vale DENTRO da área segura `margins` (esquerda, topo,
+## direita, base): com notch ou barras o conjunto inteiro encolhe junto, sem um controle ser empurrado sobre outro.
 func get_center(id: StringName, view: Vector2, margins: Vector4 = Vector4.ZERO) -> Vector2:
-	var raw: Vector2 = (_pos[id] as Vector2) * view
-	return _clamp_center(raw, get_size(id, view), view, margins)
+	var origin: Vector2 = Vector2(margins.x, margins.y)
+	var safe: Vector2 = view - origin - Vector2(margins.z, margins.w)
+	var raw: Vector2 = origin + (_pos[id] as Vector2) * safe
+	return _clamp_center(raw, get_size(id, view, margins), view, margins)
 
 
 ## Retângulo em px do controle.
 func get_rect(id: StringName, view: Vector2, margins: Vector4 = Vector4.ZERO) -> Rect2:
-	var size: Vector2 = get_size(id, view)
+	var size: Vector2 = get_size(id, view, margins)
 	return Rect2(get_center(id, view, margins) - size * 0.5, size)
 
 
-## Move o controle para `center_px` (limitado para não sair da tela).
+## Move o controle para `center_px` (limitado para não sair da área segura).
 func set_center(id: StringName, center_px: Vector2, view: Vector2, margins: Vector4 = Vector4.ZERO) -> void:
-	var c: Vector2 = _clamp_center(center_px, get_size(id, view), view, margins)
-	_pos[id] = Vector2(c.x / view.x, c.y / view.y)
+	var c: Vector2 = _clamp_center(center_px, get_size(id, view, margins), view, margins)
+	var origin: Vector2 = Vector2(margins.x, margins.y)
+	var safe: Vector2 = view - origin - Vector2(margins.z, margins.w)
+	_pos[id] = Vector2((c.x - origin.x) / maxf(safe.x, 1.0), (c.y - origin.y) / maxf(safe.y, 1.0))
 
 
-## Muda a escala (limites mínimo/máximo) e mantém o controle dentro da tela.
+## Muda a escala (limites mínimo/máximo) e mantém o controle dentro da área segura.
 func set_scale_value(id: StringName, value: float, view: Vector2, margins: Vector4 = Vector4.ZERO) -> void:
 	var center: Vector2 = get_center(id, view, margins)
 	_scale[id] = clampf(value, MIN_SCALE, MAX_SCALE)

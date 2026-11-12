@@ -21,6 +21,7 @@ var is_open: bool = false
 
 var _canvas: Control = null
 var _panel: PanelContainer = null
+var _title: Label = null  # Instrução do alto.
 var _name_label: Label = null
 var _slider: HSlider = null
 var _size_label: Label = null
@@ -51,6 +52,7 @@ func open() -> void:
 	_fingers.clear()
 	_drag_id = &""
 	_sync_panel()
+	_place_panels()
 	_canvas.queue_redraw()
 
 
@@ -126,68 +128,95 @@ func _build() -> void:
 	_canvas.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_canvas.draw.connect(_draw_canvas)
 	root.add_child(_canvas)
-	# Instrução no alto (fonte do jogo).
-	var title: Label = Label.new()
-	title.name = "Instrucao"
-	title.text = INSTRUCTION
-	title.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	title.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	title.offset_top = 10.0
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override(&"font_size", 26)
-	title.add_theme_color_override(&"font_color", Palette.TEXT)
-	title.add_theme_color_override(&"font_outline_color", Color.BLACK)
-	title.add_theme_constant_override(&"outline_size", 6)
-	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.add_child(title)
-	# Painel inferior: nome, tamanho e botões.
+	# Instrução no alto (fonte do jogo), na faixa livre entre as barras de status e os botões da direita.
+	_title = Label.new()
+	_title.name = "Instrucao"
+	_title.text = INSTRUCTION
+	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_title.add_theme_font_size_override(&"font_size", 26)
+	_title.add_theme_color_override(&"font_color", Palette.TEXT)
+	_title.add_theme_color_override(&"font_outline_color", Color.BLACK)
+	_title.add_theme_constant_override(&"outline_size", 6)
+	_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(_title)
+	# Painel inferior: nome + tamanho numa linha, botões na outra. Fica na faixa livre do layout padrão, entre o
+	# joystick de movimento e os botões da direita, dentro da área segura.
 	_panel = PanelContainer.new()
 	_panel.name = "Painel"
-	_panel.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	_panel.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	_panel.offset_bottom = -12.0
 	root.add_child(_panel)
 	var box: VBoxContainer = VBoxContainer.new()
 	box.add_theme_constant_override(&"separation", 6)
 	_panel.add_child(box)
-	_name_label = Label.new()
-	_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_name_label.add_theme_font_size_override(&"font_size", 22)
-	box.add_child(_name_label)
 	var size_row: HBoxContainer = HBoxContainer.new()
 	size_row.add_theme_constant_override(&"separation", 8)
 	box.add_child(size_row)
-	var size_title: Label = Label.new()
-	size_title.text = "Tamanho"
-	size_title.add_theme_font_size_override(&"font_size", 20)
-	size_row.add_child(size_title)
+	_name_label = Label.new()
+	_name_label.custom_minimum_size.x = 150.0
+	_name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_name_label.add_theme_font_size_override(&"font_size", 20)
+	size_row.add_child(_name_label)
 	_slider = HSlider.new()
+	_slider.name = "Tamanho"
 	_slider.min_value = MobileLayout.MIN_SCALE
 	_slider.max_value = MobileLayout.MAX_SCALE
 	_slider.step = 0.02
-	_slider.custom_minimum_size = Vector2(240.0, 34.0)
+	_slider.custom_minimum_size = Vector2(110.0, Platform.MIN_TOUCH)
 	_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_slider.focus_mode = Control.FOCUS_NONE
 	_slider.value_changed.connect(_on_slider_changed)
 	size_row.add_child(_slider)
 	_size_label = Label.new()
-	_size_label.custom_minimum_size.x = 64.0
+	_size_label.custom_minimum_size.x = 56.0
+	_size_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_size_label.add_theme_font_size_override(&"font_size", 20)
 	size_row.add_child(_size_label)
 	var buttons: HBoxContainer = HBoxContainer.new()
 	buttons.add_theme_constant_override(&"separation", 8)
 	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
 	box.add_child(buttons)
-	for entry: Array in [["Restaurar padrão", &"restore"], ["Salvar", &"save"], ["Voltar", &"back"]]:
+	for entry: Array in [["Restaurar padrão", &"restore", 150.0], ["Salvar", &"save", 92.0], ["Voltar", &"back", 92.0]]:
 		var button: PixelButton = PixelButton.new()
 		button.text = entry[0]
 		button.name = String(entry[1]).capitalize()
-		button.custom_minimum_size = Vector2(150.0, 46.0)
+		button.custom_minimum_size = Vector2(entry[2], Platform.MIN_TOUCH)
 		button.focus_mode = Control.FOCUS_NONE
-		button.add_theme_font_size_override(&"font_size", 20)
+		button.add_theme_font_size_override(&"font_size", 18)
 		button.pressed.connect(_on_button.bind(entry[1]))
 		buttons.add_child(button)
+	Platform.safe_area_changed.connect(_place_panels)
+	_place_panels()
+
+
+func _exit_tree() -> void:
+	if Platform.safe_area_changed.is_connected(_place_panels):
+		Platform.safe_area_changed.disconnect(_place_panels)
+
+
+## Coloca a instrução e o painel nas faixas que o layout PADRÃO deixa livres, sempre dentro da área segura:
+## instrução no alto, entre as barras de status e o botão E; painel embaixo, entre o joystick de movimento e o
+## botão de trocar arma.
+func _place_panels() -> void:
+	if _panel == null:
+		return
+	var view: Vector2 = MobileControls.view_size()
+	var margins: Vector4 = MobileControls.safe_margins()
+	var safe: Rect2 = Platform.get_safe_rect()
+	var padrao: MobileLayout = MobileLayout.new()
+	const GAP: float = 10.0
+	# Painel inferior.
+	var left: float = padrao.get_rect(MobileLayout.MOVE, view, margins).end.x + GAP
+	var right: float = padrao.get_rect(MobileLayout.WEAPON, view, margins).position.x - GAP
+	var need: Vector2 = _panel.get_combined_minimum_size()
+	var width: float = clampf(right - left, need.x, maxf(need.x, 560.0))
+	_panel.size = Vector2(width, need.y)
+	_panel.position = Vector2(clampf((left + right - width) * 0.5, safe.position.x, safe.end.x - width), safe.end.y - need.y - 8.0)
+	# Instrução no alto.
+	var t_left: float = padrao.get_rect(MobileLayout.STATUS, view, margins).end.x + GAP
+	var t_right: float = padrao.get_rect(MobileLayout.INTERACT, view, margins).position.x - GAP
+	_title.position = Vector2(t_left, safe.position.y + 10.0)
+	_title.size = Vector2(maxf(t_right - t_left, 200.0), 0.0)
+	_title.size.y = _title.get_minimum_size().y
 
 
 func _on_button(kind: StringName) -> void:

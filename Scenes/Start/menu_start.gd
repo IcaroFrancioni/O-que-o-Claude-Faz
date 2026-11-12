@@ -21,6 +21,7 @@ func _ready() -> void:
 	# As imagens são brancas: tinge com a paleta (nada de branco puro na tela).
 	_stars.modulate = Palette.TEXT_DIM  # Estrelas esmaecidas.
 	_title.modulate = Palette.TEXT  # Título na cor do texto.
+	SafeArea.fit($Center)  # Celular: o menu fica centralizado na área segura (fora do notch e das barras).
 	_settings = SettingsPanel.new()  # Cria a página de configurações.
 	_settings.visible = false  # Começa escondida.
 	_menu_panel.add_child(_settings)  # Entra no painel.

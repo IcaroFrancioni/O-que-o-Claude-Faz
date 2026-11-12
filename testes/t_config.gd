@@ -20,11 +20,11 @@ func rodar() -> void:
 	await frames(5)
 	var settings: SettingsPanel = pause_menu.get_node("Root/Center/Panel").find_children("*", "SettingsPanel", true, false)[0] as SettingsPanel
 	check(settings.visible, "a tela de configurações abriu")
-	var tilt_button: Button = settings.get_node_or_null("TiltButton") as Button
+	var tilt_button: Button = settings.find_child("TiltButton", true, false) as Button
 	check(tilt_button != null and tilt_button.text == "Acelerômetro", "configurações têm a página 'Acelerômetro' no celular")
 	await tap(0, tilt_button.get_global_rect().get_center())
 	await frames(5)
-	var page: Control = settings.get_node("TiltPage") as Control
+	var page: Control = settings.find_child("TiltPage", true, false) as Control
 	check(page.visible, "a página do acelerômetro abriu")
 	var sliders: Array[Node] = page.find_children("*", "HSlider", true, false)
 	check(sliders.size() == 3, "três sliders: sensibilidade, zona morta e intervalo (%d)" % sliders.size())
@@ -54,6 +54,11 @@ func rodar() -> void:
 	check(not ti.auto_calibrate, "desligar a opção faz o modo comando usar a pose guardada")
 	# Voltar grava os ajustes.
 	var back: Button = page.find_child("TiltBackButton", true, false) as Button
+	# A página rola por toque quando não cabe na área segura: rola até o botão antes de tocar, como o jogador faria.
+	var scroll: ScrollContainer = settings.find_children("*", "ScrollContainer", true, false)[0] as ScrollContainer
+	scroll.ensure_control_visible(back)
+	await frames(3)
+	check(scroll.get_global_rect().grow(1.0).encloses(back.get_global_rect()), "rolando a página, o botão Voltar fica inteiro na tela")
 	await tap(0, back.get_global_rect().get_center())
 	await frames(5)
 	check(not page.visible and not ti.is_active(), "voltar fecha a página e desliga o sensor")

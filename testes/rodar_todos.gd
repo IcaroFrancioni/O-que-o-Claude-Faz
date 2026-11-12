@@ -28,6 +28,7 @@ const SUITE: Array = [
 	["t_layout.gd", ["--mobile", MOBILE_CFG], "editor de HUD: arrastar, pinça, limites, restaurar e salvar"],
 	["t_layout_reinicio.gd", ["--mobile", MOBILE_CFG], "editor de HUD: layout restaurado depois de reiniciar"],
 	["t_config.gd", ["--mobile", "--mobile-config=user://teste_config.cfg"], "configurações do acelerômetro e Calibrar"],
+	["t_resolucoes.gd", ["--mobile", "--mobile-config=user://teste_resolucoes.cfg"], "matriz de resoluções: 23 telas x 8 resoluções x 2 orientações com notch (seção 15.3)"],
 	["t_cutscene.gd", ["--mobile"], "botão 'Avançar cutscene'"],
 	["t_tutorial_mobile.gd", ["--mobile"], "tutorial mobile completo (6 passos, inclinação)"],
 	["t_skip_mobile.gd", ["--mobile"], "'Pular tutorial' responde ao toque"],
