@@ -1,5 +1,5 @@
 extends TesteBase
-## Integração mobile: vida do Turing (100 no celular, valor do player.gd no PC) e fonte padrão do jogo no quadro
+## Integração mobile: vida do Turing (100 em todas as plataformas) e fonte padrão do jogo no quadro
 ## de comandos. Rode com `--mobile` (celular) e sem (PC): `godot --path . res://testes/executor.tscn -- --teste=res://testes/t_integracao_mobile.gd [--mobile]`.
 
 
@@ -9,12 +9,8 @@ func rodar() -> void:
 	await frames(30)
 	var p: Player = player()
 	check(p != null, "o Turing existe na Fase 1")
-	if Platform.is_mobile():
-		check(p.hp_maximo == 100, "celular: vida máxima do Turing = 100 (%d)" % p.hp_maximo)
-		check(p.hp == 100, "celular: vida inicial do Turing = 100 (%d)" % p.hp)
-	else:
-		check(p.hp_maximo == 1000, "PC: vida máxima do Turing continua 1000 (%d)" % p.hp_maximo)
-		check(p.hp == 1000, "PC: vida inicial do Turing continua 1000 (%d)" % p.hp)
+	check(p.hp_maximo == 100, "vida máxima do Turing = 100 (%d)" % p.hp_maximo)
+	check(p.hp == 100, "vida inicial do Turing = 100 (%d)" % p.hp)
 	if not Platform.is_mobile():
 		return
 	# Quadro de comandos com a fonte padrão do jogo (VT323).
