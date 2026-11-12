@@ -43,6 +43,10 @@ const SIM_FINGER: int = 99  # Dedo "virtual" do mouse (simulação no PC).
 const SWORD_TIMEOUT_FRAMES: int = 20  # Tempo que o botão de espada espera o player poder golpear.
 ## Espada no joystick: true = mira enquanto segura e golpeia ao soltar.
 const MELEE_ON_RELEASE: bool = true
+const INTERACT_ANIM_TIME: float = 0.15  # Duração (s) da entrada/saída do botão E.
+const INTERACT_ANIM_FRAMES: int = 3  # Quadros da entrada/saída do botão E.
+const INTERACT_ANIM_SCALE: Array[float] = [0.0, 0.62, 1.12, 1.0]  # Escala em cada quadro (o 2º passa um pouco: "pop").
+const INTERACT_ANIM_GLOW: Array[float] = [0.0, 0.9, 0.5, 0.0]  # Brilho dourado em cada quadro.
 const LAYER_CONTROLS: int = 60  # Camada dos controles (acima do jogo e da HUD).
 const LAYER_PAUSE: int = 110  # Camada do botão de pausa (acima do menu de pausa, que é 100).
 
@@ -68,9 +72,11 @@ var _canvas: Control = null  # Nó onde os controles são desenhados.
 var _pause_layer: CanvasLayer = null  # Camada própria do botão de pausa.
 var _pause_canvas: Control = null  # Desenho do botão de pausa.
 var _terminals: Array[Node] = []  # Terminais da Fase 2 (para o botão E).
+var _lab_huds: Array[Node] = []  # HUDs do labirinto: a dica "[E] ..." delas também liga o botão E (portas e painéis).
 var _hud: GameHUD = null  # HUD da fase (as barras de status seguem o layout).
 var _bar_native: Dictionary = {}  # Barra -> tamanho original.
 var _hl_clock: float = 0.0  # Relógio do pisca de destaque.
+var _interact_anim: float = 0.0  # 0 = botão E escondido, 1 = inteiro.
 var _safe_clock: float = 0.0  # Relógio da conferência da área segura.
 
 var _fingers: Dictionary[int, StringName] = { }  # dedo -> papel (id do controle)
@@ -136,6 +142,9 @@ func _ready() -> void:
 	TiltInput.arrow.connect(_on_tilt_arrow)
 	get_tree().node_added.connect(_on_node_added)
 	get_viewport().size_changed.connect(_update_layout)
+	Platform.safe_area_changed.connect(func() -> void:
+		_update_layout()
+		refresh_layout())
 	_update_layout()
 	_scan_existing_nodes.call_deferred()
 
@@ -293,6 +302,8 @@ func _scan_existing_nodes() -> void:
 func _on_node_added(node: Node) -> void:
 	if node is QuizTerminal:
 		_terminals.append(node)
+	elif node is LabHud:
+		_lab_huds.append(node)
 	elif node is GameHUD:
 		_adapt_hud.call_deferred(node)
 
@@ -336,16 +347,7 @@ func _update_layout() -> void:
 
 ## Margens (px de tela lógica) das áreas que o celular reserva: notch, cantos arredondados, barra de gestos.
 func _compute_safe_margins() -> Vector4:
-	if not Platform.is_real_device():
-		return Vector4.ZERO
-	var window: Vector2 = Vector2(DisplayServer.window_get_size())
-	var screen: Vector2 = Vector2(DisplayServer.screen_get_size())
-	var safe: Rect2i = DisplayServer.get_display_safe_area()
-	if window.x <= 0.0 or screen.x <= 0.0 or safe.size.x <= 0:
-		return Vector4.ZERO
-	var k: float = _view.x / window.x
-	return Vector4(float(safe.position.x) * k, float(safe.position.y) * k,
-			maxf(screen.x - float(safe.end.x), 0.0) * k, maxf(screen.y - float(safe.end.y), 0.0) * k)
+	return Platform.get_safe_margins()
 
 
 ## As barras de vida/escudo seguem o layout (posição e escala do controle "status").
@@ -375,8 +377,26 @@ func _button_enabled(id: StringName) -> bool:
 	return id != MobileLayout.INTERACT or _interact_available()
 
 
-## Algum terminal da Fase 2 está com a dica "[E]" visível?
+## Entrada/saída do botão E em 3 quadros (escala + brilho), sem atrasar o toque: o botão já responde no 1º quadro.
+func _step_interact_anim(delta: float) -> void:
+	var target: float = 1.0 if (_shown and _interact_available()) else 0.0
+	_interact_anim = move_toward(_interact_anim, target, delta / INTERACT_ANIM_TIME)
+
+
+## Quadro atual da animação do botão E: 0 = escondido, 1..INTERACT_ANIM_FRAMES = entrando/saindo, o último = parado.
+func interact_anim_frame() -> int:
+	return ceili(_interact_anim * float(INTERACT_ANIM_FRAMES) - 0.0001)
+
+
+## Há um objeto interativo ao alcance? É a MESMA condição que mostra o aviso da tecla E no computador:
+## a dica "[E]" de um terminal do quiz ou da HUD do labirinto (portas e painéis) está visível.
 func _interact_available() -> bool:
+	for hud: Node in _lab_huds:
+		if not is_instance_valid(hud) or not hud.is_inside_tree():
+			continue
+		var label: Label = (hud as LabHud).prompt_label
+		if label != null and label.is_visible_in_tree():
+			return true
 	for terminal: Node in _terminals:
 		if not is_instance_valid(terminal) or not terminal.is_inside_tree():
 			continue
@@ -633,6 +653,7 @@ func _physics_process(_delta: float) -> void:
 
 func _process(delta: float) -> void:
 	_hl_clock += delta
+	_step_interact_anim(delta)
 	if Platform.is_real_device():  # girar 180 graus troca o lado do notch sem mudar o tamanho da janela
 		_safe_clock += delta
 		if _safe_clock >= 0.5:
@@ -800,11 +821,16 @@ func _draw_controls() -> void:
 	MobileDraw.stick(_canvas, control_center(MobileLayout.MOVE), move_r, _move_vec.limit_length(1.0) * move_r * 0.62, _move_finger != -1)
 	var aim_r: float = control_radius(MobileLayout.AIM)
 	MobileDraw.stick(_canvas, control_center(MobileLayout.AIM), aim_r, _aim_vec.limit_length(1.0) * aim_r * 0.62, _aim_finger != -1)
-	for id: StringName in [MobileLayout.SWORD, MobileLayout.DASH, MobileLayout.WEAPON, MobileLayout.COMMAND, MobileLayout.INTERACT]:
-		if not _button_enabled(id):
-			continue
+	for id: StringName in [MobileLayout.SWORD, MobileLayout.DASH, MobileLayout.WEAPON, MobileLayout.COMMAND]:
 		var active: bool = id == MobileLayout.COMMAND and _command_open()
 		MobileDraw.button(_canvas, control_center(id), control_radius(id), id, _pressed_roles.get(id, false), active)
+	var frame: int = interact_anim_frame()
+	if frame > 0:  # botão E: aparece/some em 3 quadros de escala e brilho
+		var center: Vector2 = control_center(MobileLayout.INTERACT)
+		var radius: float = control_radius(MobileLayout.INTERACT) * INTERACT_ANIM_SCALE[frame]
+		MobileDraw.button(_canvas, center, radius, MobileLayout.INTERACT, _pressed_roles.get(MobileLayout.INTERACT, false))
+		if INTERACT_ANIM_GLOW[frame] > 0.0:
+			_canvas.draw_arc(center, radius + 3.0, 0.0, TAU, 40, Color(MobileDraw.COLOR_SELECTED, INTERACT_ANIM_GLOW[frame]), 4.0, true)
 	if highlight != &"" and highlight != MobileLayout.PAUSE:
 		_draw_highlight(_canvas)
 

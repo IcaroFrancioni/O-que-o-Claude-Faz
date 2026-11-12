@@ -13,7 +13,7 @@ const DASH: StringName = &"dash"  # Botão de dash.
 const WEAPON: StringName = &"weapon"  # Botão de trocar arma.
 const COMMAND: StringName = &"command"  # Botão do modo comando.
 const PAUSE: StringName = &"pause"  # Botão de pausa.
-const INTERACT: StringName = &"interact"  # Botão E (terminais da Fase 2).
+const INTERACT: StringName = &"interact"  # Botão E temporário (aparece com um objeto interativo ao alcance), logo acima do modo comando.
 const STATUS: StringName = &"status"  # Barras de vida e escudo.
 const BOARD: StringName = &"board"  # Quadro de comandos.
 
@@ -42,7 +42,7 @@ const DEFS: Dictionary = {
 	DASH: {"pos": Vector2(0.763, 0.852), "size": Vector2(94.0, 94.0), "circle": true},
 	WEAPON: {"pos": Vector2(0.690, 0.660), "size": Vector2(94.0, 94.0), "circle": true},
 	COMMAND: {"pos": Vector2(0.725, 0.500), "size": Vector2(94.0, 94.0), "circle": true},
-	INTERACT: {"pos": Vector2(0.650, 0.860), "size": Vector2(80.0, 80.0), "circle": true},
+	INTERACT: {"pos": Vector2(0.725, 0.340), "size": Vector2(94.0, 94.0), "circle": true},
 	PAUSE: {"pos": Vector2(0.964, 0.065), "size": Vector2(62.0, 62.0), "circle": true},
 	STATUS: {"pos": Vector2(0.104, 0.127), "size": Vector2(264.0, 148.0), "circle": false},
 	BOARD: {"pos": Vector2(0.898, 0.2785), "size": Vector2(299.0, 361.0), "circle": false},

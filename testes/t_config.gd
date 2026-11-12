@@ -7,6 +7,7 @@ func rodar() -> void:
 	var ti: Node = get_node("/root/TiltInput")
 	ti.simulate_with_keys = false
 	MobileSettings.wipe()
+	Input.set_accelerometer(gravity(0.0, 0.0))  # aparelho COM acelerômetro: um sensor real sempre mede a gravidade
 	await set_window()
 	load_level("res://Scenes/Fase1/fase_1.tscn")
 	await frames(60)
@@ -62,5 +63,34 @@ func rodar() -> void:
 			"a pose calibrada e a opção foram gravadas")
 	check(is_equal_approx(float(cfg.get_value("tilt", "sensitivity", 0.0)), 1.8) and is_equal_approx(float(cfg.get_value("tilt", "cooldown", 0.0)), 0.45),
 			"sensibilidade e intervalo gravados")
+	check(tilt_button.is_visible_in_tree(), "com sensor, o botão 'Acelerômetro' volta a aparecer nas configurações")
+
+	# --- Aparelho SEM acelerômetro: nada de Calibrar, sensibilidade, zona morta ou intervalo, em lugar nenhum. ---
+	await tap(0, tilt_button.get_global_rect().get_center())
+	await frames(5)
+	check(page.visible, "a página abre de novo (com sensor)")
+	Input.set_accelerometer(Vector3.ZERO)
+	await real_seconds(ti.missing_after + 0.5)
+	check(ti.sensor_missing and not ti.has_sensor(), "vetor exatamente zero por ~1 s: sensor dado como ausente")
+	check(not page.visible, "sem sensor, a página do acelerômetro fecha sozinha")
+	check(not tilt_button.is_visible_in_tree(), "sem sensor, o botão 'Acelerômetro' some das configurações")
+	var visiveis: Array[String] = []
+	for no: Node in pause_menu.find_children("*", "Control", true, false):
+		var c: Control = no as Control
+		if not c.is_visible_in_tree():
+			continue
+		var texto: String = str(c.get("text")).to_lower() if "text" in c else ""
+		for termo: String in ["calibrar", "sensibilidade", "zona morta", "intervalo", "acelerômetro"]:
+			if texto.contains(termo):
+				visiveis.append("%s: %s" % [c.name, texto])
+	check(visiveis.is_empty(), "sem sensor, nenhuma opção do acelerômetro fica visível %s" % [visiveis])
+	check(settings.visible and settings.find_children("*", "HSlider", true, false).filter(func(n: Node) -> bool: return (n as Control).is_visible_in_tree()).size() == 2,
+			"as configurações de áudio continuam lá (2 sliders)")
+	# O sensor volta (ex.: aparelho que demora a entregar a 1ª leitura): as opções reaparecem.
+	Input.set_accelerometer(gravity(0.0, 0.0))
+	ti.acquire(self)
+	await real_seconds(0.3)
+	ti.release(self)
+	check(ti.has_sensor() and tilt_button.is_visible_in_tree(), "com o sensor de volta, o botão 'Acelerômetro' reaparece")
 	Input.set_accelerometer(Vector3.ZERO)
 	MobileSettings.wipe()

@@ -24,6 +24,7 @@ var _sliders: Array[HSlider] = []  # Sliders de volume.
 var _back_button: PixelButton = null  # Botão "Voltar".
 # Celular: página do acelerômetro (sensibilidade, zona morta, intervalo e calibração).
 var _tilt_page: VBoxContainer = null
+var _tilt_button: PixelButton = null  # Botão "Acelerômetro" (só aparece com sensor presente).
 var _audio_children: Array[Node] = []  # Peças da página de áudio (escondidas na página do acelerômetro).
 var _calibrate_label: Label = null
 var _calibrate_token: int = 0
@@ -52,6 +53,11 @@ func _ready() -> void:
 		tilt_button.custom_minimum_size.y = BUTTON_HEIGHT
 		tilt_button.pressed.connect(_show_tilt_page.bind(true))
 		add_child(tilt_button)
+		_tilt_button = tilt_button
+		# Sem acelerômetro, nada de "Calibrar", sensibilidade, zona morta ou intervalo: o botão some.
+		visibility_changed.connect(_refresh_tilt_availability)
+		TiltInput.sensor_state_changed.connect(func(_on: bool) -> void: _refresh_tilt_availability())
+		_refresh_tilt_availability()
 	add_child(HSeparator.new())
 	_back_button = PixelButton.new()  # Botão de voltar.
 	_back_button.text = BACK_TEXT
@@ -210,10 +216,22 @@ func _add_tilt_slider(label_text: String, min_v: float, max_v: float, step_v: fl
 	row.add_child(slider)
 
 
+## Esconde tudo do acelerômetro quando o aparelho não tem o sensor (e volta à página de áudio se ela estava aberta).
+func _refresh_tilt_availability() -> void:
+	if _tilt_button == null:
+		return
+	var has_sensor: bool = TiltInput.has_sensor()
+	if not has_sensor and _tilt_page != null and _tilt_page.visible:
+		_show_tilt_page(false)
+	_tilt_button.visible = has_sensor and (_tilt_page == null or not _tilt_page.visible)
+
+
 ## Mostra a página do acelerômetro (true) ou volta à de áudio (false).
 func _show_tilt_page(show: bool) -> void:
 	for child: Node in _audio_children:
 		(child as Control).visible = not show
+	if not show and _tilt_button != null:
+		_tilt_button.visible = TiltInput.has_sensor()
 	_tilt_page.visible = show
 	if show:
 		TiltInput.acquire(self)  # liga o indicador ao vivo

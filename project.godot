@@ -135,6 +135,10 @@ debug_overlay={
 ]
 }
 
+[input_devices]
+
+sensors/enable_accelerometer=true
+
 [layer_names]
 
 2d_physics/layer_1="Mundo"

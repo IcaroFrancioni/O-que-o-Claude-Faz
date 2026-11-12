@@ -43,14 +43,17 @@ func _layout() -> void:
 	var expected: Dictionary = {
 		MobileLayout.MOVE: Vector2(0.107, 0.806), MobileLayout.AIM: Vector2(0.90, 0.806), MobileLayout.SWORD: Vector2(0.794, 0.664),
 		MobileLayout.DASH: Vector2(0.763, 0.852), MobileLayout.WEAPON: Vector2(0.69, 0.66), MobileLayout.COMMAND: Vector2(0.725, 0.50),
-		MobileLayout.PAUSE: Vector2(0.964, 0.065),
+		MobileLayout.PAUSE: Vector2(0.964, 0.065), MobileLayout.INTERACT: Vector2(0.725, 0.34),
 	}
 	for id: StringName in expected:
 		var c: Vector2 = mc.control_center(id) / view
 		check(c.distance_to(expected[id]) < 0.02, "controle %s na posição do print (%s ~ %s)" % [id, c, expected[id]])
 	# Nenhum botão se sobrepõe a outro controle.
 	var ids: Array[StringName] = [MobileLayout.MOVE, MobileLayout.AIM, MobileLayout.SWORD, MobileLayout.DASH, MobileLayout.WEAPON,
-			MobileLayout.COMMAND, MobileLayout.PAUSE]
+			MobileLayout.COMMAND, MobileLayout.PAUSE, MobileLayout.INTERACT]
+	check(is_equal_approx(mc.control_radius(MobileLayout.INTERACT), mc.control_radius(MobileLayout.WEAPON)), "o botão E tem o MESMO tamanho do botão de trocar arma")
+	check(mc.control_center(MobileLayout.INTERACT).y < mc.control_center(MobileLayout.COMMAND).y - mc.control_radius(MobileLayout.COMMAND)
+			and absf(mc.control_center(MobileLayout.INTERACT).x - mc.control_center(MobileLayout.COMMAND).x) < 2.0, "o botão E fica imediatamente acima do botão de modo comando")
 	var overlap: int = 0
 	for i: int in ids.size():
 		for j: int in range(i + 1, ids.size()):

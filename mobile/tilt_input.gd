@@ -95,6 +95,17 @@ func is_active() -> bool:
 	return not _holders.is_empty()
 
 
+## True se o aparelho tem acelerômetro utilizável AGORA. Um sensor real sempre mede a gravidade, então qualquer
+## leitura diferente de zero prova que ele existe; a simulação por teclas (PC com `--mobile`) conta como sensor.
+## É o que decide se "Calibrar", sensibilidade, zona morta e intervalo aparecem nas configurações.
+func has_sensor() -> bool:
+	if simulate_with_keys:
+		return true
+	if sensor_missing:
+		return false
+	return sensor_available or Input.get_accelerometer() != Vector3.ZERO
+
+
 ## Calibra a posição neutra com a pose atual do aparelho (botão "Calibrar").
 func calibrate_now() -> void:
 	_calibrate_pending = true

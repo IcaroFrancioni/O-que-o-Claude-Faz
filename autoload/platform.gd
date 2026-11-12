@@ -54,6 +54,12 @@ var debug_tilt: bool = false
 ## Paisagem invertida simulada (flag `--landscape-reverse`); em aparelho real vem do sistema.
 var simulated_reverse_landscape: bool = false
 
+## Avisa quando a área segura muda (girar o aparelho, testes).
+signal safe_area_changed
+
+## Recuos da área segura forçados pelos testes, em px da JANELA: esquerda, topo, direita, base (null = usar o sistema).
+var _safe_override: Variant = null
+
 var _mobile: bool = false  # True no Android, iOS (ou navegador com toque) e com `--mobile`.
 var _name_override: String = ""  # Plataforma forçada por `--platform=` ou pelos testes.
 
@@ -143,6 +149,47 @@ func landscape_orientation() -> int:
 	if current == DisplayServer.SCREEN_REVERSE_LANDSCAPE:
 		return TiltLogic.Orientation.LANDSCAPE_REVERSE
 	return TiltLogic.Orientation.LANDSCAPE
+
+
+## Área segura da tela em coordenadas LÓGICAS do jogo (as mesmas dos Controls): o retângulo que não fica sob o
+## notch, os cantos arredondados, a barra de gestos do Android ou a barra home do iOS. No computador é a tela toda.
+func get_safe_rect() -> Rect2:
+	var view: Vector2 = _view_size()
+	var m: Vector4 = get_safe_margins()
+	return Rect2(m.x, m.y, maxf(view.x - m.x - m.z, 1.0), maxf(view.y - m.y - m.w, 1.0))
+
+
+## Recuos da área segura em px lógicos: esquerda, topo, direita, base.
+func get_safe_margins() -> Vector4:
+	var view: Vector2 = _view_size()
+	var window: Vector2 = Vector2(DisplayServer.window_get_size())
+	if window.x <= 0.0 or window.y <= 0.0:
+		return Vector4.ZERO
+	var k: Vector2 = view / window  # px da janela -> px lógicos
+	if _safe_override != null:
+		var o: Vector4 = _safe_override
+		return Vector4(o.x * k.x, o.y * k.y, o.z * k.x, o.w * k.y)
+	if not is_real_device():
+		return Vector4.ZERO
+	var screen: Vector2 = Vector2(DisplayServer.screen_get_size())
+	var safe: Rect2i = DisplayServer.get_display_safe_area()
+	if screen.x <= 0.0 or safe.size.x <= 0:
+		return Vector4.ZERO
+	return Vector4(float(safe.position.x) * k.x, float(safe.position.y) * k.y,
+			maxf(screen.x - float(safe.end.x), 0.0) * k.x, maxf(screen.y - float(safe.end.y), 0.0) * k.y)
+
+
+## Testes: simula notch/barras com recuos em px da janela (esquerda, topo, direita, base). `null` volta ao sistema.
+func set_safe_insets_override(insets: Variant) -> void:
+	_safe_override = insets
+	safe_area_changed.emit()
+
+
+func _view_size() -> Vector2:
+	var tree: SceneTree = Engine.get_main_loop() as SceneTree
+	if tree == null or tree.root == null:
+		return Vector2(1152.0, 648.0)
+	return tree.root.get_visible_rect().size
 
 
 ## Liga/desliga o modo celular em tempo de execução (só para os testes automáticos e o editor).

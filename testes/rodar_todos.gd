@@ -23,6 +23,7 @@ const SUITE: Array = [
 	["t_pc.gd", [], "REGRESSÃO no computador: sem controles de toque, teclado/mouse como antes"],
 	["t_tutorial_pc.gd", [], "REGRESSÃO do tutorial no computador"],
 	["t_controles.gd", ["--mobile"], "joysticks, botões, multitouch, pausa e layout do print"],
+	["t_interagir.gd", ["--mobile"], "botão temporário E: aparece/some com o alcance, anima e interage (terminal e labirinto)"],
 	["t_comando_mobile.gd", ["--mobile"], "modo comando por inclinação, quadro de comandos e D-pad de fallback"],
 	["t_layout.gd", ["--mobile", MOBILE_CFG], "editor de HUD: arrastar, pinça, limites, restaurar e salvar"],
 	["t_layout_reinicio.gd", ["--mobile", MOBILE_CFG], "editor de HUD: layout restaurado depois de reiniciar"],
