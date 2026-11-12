@@ -31,8 +31,6 @@ const MOBILE_MIN_SHOT_CHARGE: float = 0.2
 ## Menor lado de um alvo de toque (botões de menu, sliders), em px lógicos: equivale a ~48 dp num celular em
 ## paisagem (tela lógica de 648 px de altura para ~430 dp => 1 dp ~ 1,5 px lógico).
 const MIN_TOUCH: float = 72.0
-## Vida máxima (e inicial) do Turing no celular. No PC vale o valor do `player.gd`.
-const MOBILE_PLAYER_HP: int = 100
 
 ## Nomes de plataforma devolvidos por `platform_name()`.
 const ANDROID: String = "android"
@@ -54,8 +52,6 @@ var camera_zoom: float = 1.0
 var aim_assist: bool = false
 ## Carga mínima do tiro (0.0 no PC).
 var min_shot_charge: float = 0.0
-## Vida máxima do Turing imposta pela plataforma (0 = sem imposição, vale a do `player.gd`). Só no celular.
-var player_hp: int = 0
 ## Overlay de depuração do acelerômetro (flag `--debug-tilt`).
 var debug_tilt: bool = false
 ## Paisagem invertida simulada (flag `--landscape-reverse`); em aparelho real vem do sistema.
@@ -230,9 +226,7 @@ func _apply_mobile_tuning() -> void:
 		camera_zoom = MOBILE_CAMERA_ZOOM  # Câmera mais próxima.
 		aim_assist = true  # Liga a mira assistida do tiro.
 		min_shot_charge = MOBILE_MIN_SHOT_CHARGE  # Tiro mínimo para o toque rápido.
-		player_hp = MOBILE_PLAYER_HP  # Turing com 100 de vida no celular.
 	else:
-		player_hp = 0  # PC: vida do `player.gd`.
 		sprite_scale = 1.0
 		camera_zoom = 1.0
 		aim_assist = false
