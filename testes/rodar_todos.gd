@@ -16,6 +16,7 @@ const SUITE: Array = [
 	["t_carga.gd", [], "carrega todos os scripts e cenas (computador)"],
 	["t_carga.gd", ["--mobile"], "carrega todos os scripts e cenas (celular)"],
 	["t_equilibrio.gd", [], "EQUILÍBRIO: dificuldade igual à base (testes/equilibrio_base.json)"],
+	["t_ondas.gd", [], "waves com 50% dos inimigos (max(1, ceil(n x 0,5))), chefes = 1"],
 	["t_menu.gd", [], "tela inicial sem dicas, botões e foco (computador)"],
 	["t_menu.gd", ["--mobile"], "tela inicial sem dicas, botões e foco (celular)"],
 	["t_tilt_logico.gd", [], "função pura do acelerômetro (plataformas x orientações x direções)"],

@@ -23,6 +23,7 @@ Global="*res://autoload/global.gd"
 AudioSettings="*res://autoload/audio_settings.gd"
 TiltInput="*res://mobile/tilt_input.gd"
 MobileControls="*res://autoload/mobile_controls.gd"
+Ondas="*res://autoload/ondas.gd"
 
 [display]
 
