@@ -17,3 +17,6 @@ testes/saida/
 testes/capturas/*.import
 testes/capturas/*.uid
 *.png.import.bak
+
+# Documentos de trabalho (não fazem parte do jogo)
+entrega/
