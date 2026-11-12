@@ -19,7 +19,6 @@ static func tex(name: String) -> Texture2D:
 ## Ícone do papel (`MobileLayout.*`).
 static func icon_for(id: StringName) -> String:
 	match id:
-		MobileLayout.SWORD: return "ic_sword.png"
 		MobileLayout.DASH: return "ic_dash.png"
 		MobileLayout.WEAPON: return "ic_swap.png"
 		MobileLayout.COMMAND: return "ic_command.png"
@@ -33,7 +32,7 @@ static func button(ci: CanvasItem, center: Vector2, radius: float, id: StringNam
 	var rect: Rect2 = Rect2(center - Vector2(radius, radius), Vector2(radius, radius) * 2.0)
 	ci.draw_texture_rect(tex("btn_base_pressed.png" if pressed else "btn_base.png"), rect, false)
 	if active:
-		ci.draw_arc(center, radius - 2.0, 0.0, TAU, 40, Color(COLOR_SELECTED, 0.9), 3.0, true)
+		ci.draw_arc(center, radius + 3.0, 0.0, TAU, 40, Color(COLOR_SELECTED, 0.9), 3.0, true)
 	var icon: String = icon_for(id)
 	if icon != "":
 		var inner: Rect2 = Rect2(center - Vector2(radius, radius) * 0.9, Vector2(radius, radius) * 1.8)
@@ -41,12 +40,15 @@ static func button(ci: CanvasItem, center: Vector2, radius: float, id: StringNam
 
 
 ## Joystick: base grande e bolinha na posição `thumb` (já em px, relativa ao centro).
-static func stick(ci: CanvasItem, center: Vector2, radius: float, thumb: Vector2 = Vector2.ZERO, pressed: bool = false) -> void:
+## `icon` (opcional) é desenhado sobre a bolinha: no joystick direito mostra a arma atual (tiro ou espada).
+static func stick(ci: CanvasItem, center: Vector2, radius: float, thumb: Vector2 = Vector2.ZERO, pressed: bool = false, icon: String = "") -> void:
 	ci.draw_texture_rect(tex("stick_base.png"), Rect2(center - Vector2(radius, radius), Vector2(radius, radius) * 2.0), false)
 	var thumb_r: float = radius * 0.42
 	var thumb_center: Vector2 = center + thumb
 	ci.draw_texture_rect(tex("stick_thumb_pressed.png" if pressed else "stick_thumb.png"),
 			Rect2(thumb_center - Vector2(thumb_r, thumb_r), Vector2(thumb_r, thumb_r) * 2.0), false)
+	if icon != "":
+		ci.draw_texture_rect(tex(icon), Rect2(thumb_center - Vector2(thumb_r, thumb_r), Vector2(thumb_r, thumb_r) * 2.0), false)
 
 
 ## Intensidade (0 a 1) do pisca do destaque no instante `phase` (s): ~1,6 piscadas por segundo.

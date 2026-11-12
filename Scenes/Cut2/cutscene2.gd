@@ -363,7 +363,11 @@ func _start_booth_glow() -> void:
 func _say(who: String, line: String, accent: Color, cps: float = 0.0) -> void:
 	if _finished:
 		return
-	_speaker.text = who
+	# As cutscenes não dizem quem fala (só a cutscene final mostra o autor): o nome fica escondido e a cor de
+	# destaque continua distinguindo as vozes.
+	_speaker.text = ""
+	_speaker.visible = false
+	_speaker.set_meta(&"falante", who)
 	_speaker.add_theme_color_override("font_color", accent)
 	_text.text = line
 	_text.visible_ratio = 0.0

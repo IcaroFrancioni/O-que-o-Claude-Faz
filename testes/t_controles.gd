@@ -41,7 +41,7 @@ func _layout() -> void:
 	var view: Vector2 = mc.view_size()
 	check(absf(view.x / view.y - 1464.0 / 648.0) < 0.05, "janela 1500x664 -> tela lógica %s" % view)
 	var expected: Dictionary = {
-		MobileLayout.MOVE: Vector2(0.107, 0.806), MobileLayout.AIM: Vector2(0.90, 0.806), MobileLayout.SWORD: Vector2(0.794, 0.664),
+		MobileLayout.MOVE: Vector2(0.107, 0.806), MobileLayout.AIM: Vector2(0.90, 0.806),
 		MobileLayout.DASH: Vector2(0.763, 0.852), MobileLayout.WEAPON: Vector2(0.69, 0.66), MobileLayout.COMMAND: Vector2(0.725, 0.50),
 		MobileLayout.PAUSE: Vector2(0.964, 0.065), MobileLayout.INTERACT: Vector2(0.725, 0.34),
 	}
@@ -49,7 +49,7 @@ func _layout() -> void:
 		var c: Vector2 = mc.control_center(id) / view
 		check(c.distance_to(expected[id]) < 0.02, "controle %s na posição do print (%s ~ %s)" % [id, c, expected[id]])
 	# Nenhum botão se sobrepõe a outro controle.
-	var ids: Array[StringName] = [MobileLayout.MOVE, MobileLayout.AIM, MobileLayout.SWORD, MobileLayout.DASH, MobileLayout.WEAPON,
+	var ids: Array[StringName] = [MobileLayout.MOVE, MobileLayout.AIM, MobileLayout.DASH, MobileLayout.WEAPON,
 			MobileLayout.COMMAND, MobileLayout.PAUSE, MobileLayout.INTERACT]
 	check(is_equal_approx(mc.control_radius(MobileLayout.INTERACT), mc.control_radius(MobileLayout.WEAPON)), "o botão E tem o MESMO tamanho do botão de trocar arma")
 	check(mc.control_center(MobileLayout.INTERACT).y < mc.control_center(MobileLayout.COMMAND).y - mc.control_radius(MobileLayout.COMMAND)
@@ -68,7 +68,7 @@ func _layout() -> void:
 	check(board.position.y / view.y <= 0.03 and board.end.y / view.y <= 0.58, "quadro de comandos vai até y <= 0,57 (%.3f)" % [board.end.y / view.y])
 	# (A PAUSA fica de propósito por cima do canto do quadro: o pedido a põe dentro da região azul e exige que fique
 	# por cima de qualquer painel; o quadro deixa esse canto livre.)
-	for id: StringName in [MobileLayout.MOVE, MobileLayout.AIM, MobileLayout.SWORD, MobileLayout.DASH, MobileLayout.WEAPON, MobileLayout.COMMAND]:
+	for id: StringName in [MobileLayout.MOVE, MobileLayout.AIM, MobileLayout.DASH, MobileLayout.WEAPON, MobileLayout.COMMAND]:
 		var r: float = mc.control_radius(id)
 		var c: Vector2 = mc.control_center(id)
 		var hit: bool = board.intersects(Rect2(c - Vector2(r, r), Vector2(r, r) * 2.0))
@@ -79,7 +79,7 @@ func _layout() -> void:
 		check(rect_other.position.x / other.x >= 0.775 and rect_other.end.x <= other.x + 0.5 and rect_other.end.y / other.y <= 0.6,
 				"proporção %s: o quadro fica na região marcada (x %.3f, y fim %.3f)" % [other, rect_other.position.x / other.x, rect_other.end.y / other.y])
 		var overlaps_other: bool = false
-		for id: StringName in [MobileLayout.SWORD, MobileLayout.DASH, MobileLayout.WEAPON, MobileLayout.COMMAND, MobileLayout.AIM, MobileLayout.MOVE]:
+		for id: StringName in [MobileLayout.DASH, MobileLayout.WEAPON, MobileLayout.COMMAND, MobileLayout.AIM, MobileLayout.MOVE]:
 			var c2: Vector2 = mc.layout.get_center(id, other)
 			var r2: float = mc.layout.get_radius(id)
 			if rect_other.intersects(Rect2(c2 - Vector2(r2, r2), Vector2(r2, r2) * 2.0)):
@@ -194,19 +194,23 @@ func _botoes() -> void:
 	touch(2, mc.control_center(MobileLayout.DASH), false)
 	check(dash_started, "botão de dash faz o jogador dar dash")
 	await frames(40)
-	# Espada: golpeia mesmo com o joystick no tiro.
+	# Não existe mais botão só de espada: o golpe vem do joystick direito com a espada escolhida no "trocar arma".
 	_reset()
 	await frames(20)
-	check(mc.weapon_ranged, "antes da espada o joystick está no tiro")
-	var swung: bool = false
-	touch(3, mc.control_center(MobileLayout.SWORD), true)
+	check(not MobileLayout.IDS.has(&"sword") and not MobileLayout.DEFS.has(&"sword"), "o botão de ataque só de espada foi removido do layout")
+	check(mc.weapon_ranged, "o joystick direito começa no tiro")
+	var antigo: Vector2 = Vector2(0.794, 0.664) * mc.view_size()  # onde o botão de espada ficava
+	var golpeou: bool = false
+	touch(3, antigo, true)
 	for i: int in 12:
 		await get_tree().physics_frame
 		if p.state == Player.State.ATTACK_MELEE:
-			swung = true
-	touch(3, mc.control_center(MobileLayout.SWORD), false)
-	check(swung, "botão de espada golpeia")
-	await frames(40)
+			golpeou = true
+	touch(3, antigo, false)
+	check(not golpeou, "tocar onde ficava o botão de espada não golpeia")
+	await frames(20)
+	_reset()
+	await frames(10)
 	# Trocar arma.
 	var swapped: Array[bool] = []
 	var on_swap: Callable = func(ranged: bool) -> void: swapped.append(ranged)

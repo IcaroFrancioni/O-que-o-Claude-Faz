@@ -42,7 +42,6 @@ const TAP_TIMEOUT_FRAMES: int = 20  # Quadros que um toque rápido espera o play
 const TAP_DELIVERED_FRAMES: int = 2  # Quadros seguidos com o player já atacando = toque entregue.
 const REPRESS_FRAMES: int = 2  # Quadros sem reação até soltar e apertar de novo.
 const SIM_FINGER: int = 99  # Dedo "virtual" do mouse (simulação no PC).
-const SWORD_TIMEOUT_FRAMES: int = 20  # Tempo que o botão de espada espera o player poder golpear.
 ## Espada no joystick: true = mira enquanto segura e golpeia ao soltar.
 const MELEE_ON_RELEASE: bool = true
 const INTERACT_ANIM_TIME: float = 0.15  # Duração (s) da entrada/saída do botão E.
@@ -95,7 +94,6 @@ var _tap_frames_left: int = 0
 var _tap_delivered_frames: int = 0
 var _repress_counter: int = 0
 var _dash_frames: int = 0
-var _sword_pending: int = 0  # Quadros restantes do golpe pedido pelo botão de espada.
 var _pressed_roles: Dictionary[StringName, bool] = { }
 var _act_state: Dictionary[StringName, bool] = { }
 var _view: Vector2 = Vector2(1152.0, 648.0)
@@ -528,7 +526,7 @@ func _press(index: int, pos: Vector2) -> bool:
 		return true
 	if not _shown:
 		return false
-	for id: StringName in [MobileLayout.COMMAND, MobileLayout.WEAPON, MobileLayout.SWORD, MobileLayout.DASH, MobileLayout.INTERACT]:
+	for id: StringName in [MobileLayout.COMMAND, MobileLayout.WEAPON, MobileLayout.DASH, MobileLayout.INTERACT]:
 		if not _button_enabled(id):
 			continue
 		if pos.distance_to(control_center(id)) <= control_radius(id) * HIT_SLACK:
@@ -630,8 +628,6 @@ func _button_down(id: StringName) -> void:
 		MobileLayout.DASH:
 			_set_action(ACT_DASH, true)
 			_dash_frames = DASH_HOLD_FRAMES
-		MobileLayout.SWORD:
-			_sword_press()
 		MobileLayout.PAUSE:
 			_tap_action(ACT_PAUSE)
 		MobileLayout.INTERACT:
@@ -639,16 +635,6 @@ func _button_down(id: StringName) -> void:
 		MobileLayout.COMMAND:
 			_command_press()
 	button_pressed.emit(id)
-
-
-## Botão de espada: golpeia na direção do inimigo mais próximo (ou na última mira / de frente).
-func _sword_press() -> void:
-	var auto: Vector2 = _nearest_enemy_direction(_player_position())
-	if auto != Vector2.ZERO:
-		_aim_dir = auto
-	elif _aim_dir == Vector2.ZERO and is_instance_valid(_player):
-		_aim_dir = _player.facing_direction
-	_sword_pending = SWORD_TIMEOUT_FRAMES
 
 
 ## Botão de modo comando: abre/fecha o modo (as setas vêm da inclinação do celular).
@@ -751,13 +737,6 @@ func _apply_attack() -> void:
 	else:
 		_set_action(ACT_SHOOT, false)
 		swing = _tap_pending if MELEE_ON_RELEASE else holding
-	# Botão de espada: pede golpe até o player entrar no golpe.
-	if _sword_pending > 0:
-		_sword_pending -= 1
-		if is_instance_valid(_player) and _player.state == Player.State.ATTACK_MELEE:
-			_sword_pending = 0
-		else:
-			swing = true
 	_set_action(ACT_MELEE, swing and not _act_state.get(ACT_MELEE, false))
 
 
@@ -808,7 +787,6 @@ func _release_all() -> void:
 	_aim_down = false
 	_tap_pending = false
 	_dash_frames = 0
-	_sword_pending = 0
 
 
 func _player_position() -> Vector2:
@@ -849,8 +827,10 @@ func _draw_controls() -> void:
 	var move_r: float = control_radius(MobileLayout.MOVE)
 	MobileDraw.stick(_canvas, control_center(MobileLayout.MOVE), move_r, _move_vec.limit_length(1.0) * move_r * 0.62, _move_finger != -1)
 	var aim_r: float = control_radius(MobileLayout.AIM)
-	MobileDraw.stick(_canvas, control_center(MobileLayout.AIM), aim_r, _aim_vec.limit_length(1.0) * aim_r * 0.62, _aim_finger != -1)
-	for id: StringName in [MobileLayout.SWORD, MobileLayout.DASH, MobileLayout.WEAPON, MobileLayout.COMMAND]:
+	# A bolinha do joystick direito mostra a arma atual (o botão de trocar arma alterna entre tiro e espada).
+	MobileDraw.stick(_canvas, control_center(MobileLayout.AIM), aim_r, _aim_vec.limit_length(1.0) * aim_r * 0.62, _aim_finger != -1,
+			"ic_shot.png" if weapon_ranged else "ic_sword.png")
+	for id: StringName in [MobileLayout.DASH, MobileLayout.WEAPON, MobileLayout.COMMAND]:
 		var active: bool = id == MobileLayout.COMMAND and _command_open()
 		MobileDraw.button(_canvas, control_center(id), control_radius(id), id, _pressed_roles.get(id, false), active)
 	var frame: int = interact_anim_frame()

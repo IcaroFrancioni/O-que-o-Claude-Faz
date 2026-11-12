@@ -7,8 +7,7 @@ extends RefCounted
 ## Padrão = o print `res://referencias/mobile_layout.png` (paisagem ~1464x648 lógicos).
 
 const MOVE: StringName = &"move"  # Joystick de movimento.
-const AIM: StringName = &"aim"  # Joystick de mira/tiro.
-const SWORD: StringName = &"sword"  # Botão de espada.
+const AIM: StringName = &"aim"  # Joystick de mira: atira ou golpeia com a espada, conforme a arma escolhida no botão de trocar arma.
 const DASH: StringName = &"dash"  # Botão de dash.
 const WEAPON: StringName = &"weapon"  # Botão de trocar arma.
 const COMMAND: StringName = &"command"  # Botão do modo comando.
@@ -18,11 +17,11 @@ const STATUS: StringName = &"status"  # Barras de vida e escudo + barra de XP ao
 const BOARD: StringName = &"board"  # Quadro de comandos.
 
 ## Todos os controles editáveis, na ordem de desenho/teste.
-const IDS: Array[StringName] = [MOVE, AIM, SWORD, DASH, WEAPON, COMMAND, INTERACT, STATUS, BOARD, PAUSE]
+const IDS: Array[StringName] = [MOVE, AIM, DASH, WEAPON, COMMAND, INTERACT, STATUS, BOARD, PAUSE]
 
 ## Nome mostrado no editor.
 const LABELS: Dictionary = {
-	MOVE: "Movimento", AIM: "Mira e tiro", SWORD: "Espada", DASH: "Dash", WEAPON: "Trocar arma",
+	MOVE: "Movimento", AIM: "Mira e ataque", DASH: "Dash", WEAPON: "Trocar arma",
 	COMMAND: "Modo comando", INTERACT: "Interagir", STATUS: "Barras de status", BOARD: "Quadro de comandos",
 	PAUSE: "Pausa",
 }
@@ -38,7 +37,6 @@ const MAX_SCALE: float = 1.8
 const DEFS: Dictionary = {
 	MOVE: {"pos": Vector2(0.107, 0.806), "size": Vector2(164.0, 164.0), "circle": true},
 	AIM: {"pos": Vector2(0.900, 0.806), "size": Vector2(164.0, 164.0), "circle": true},
-	SWORD: {"pos": Vector2(0.794, 0.664), "size": Vector2(94.0, 94.0), "circle": true},
 	DASH: {"pos": Vector2(0.763, 0.852), "size": Vector2(94.0, 94.0), "circle": true},
 	WEAPON: {"pos": Vector2(0.690, 0.660), "size": Vector2(94.0, 94.0), "circle": true},
 	COMMAND: {"pos": Vector2(0.725, 0.500), "size": Vector2(94.0, 94.0), "circle": true},

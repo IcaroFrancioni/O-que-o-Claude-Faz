@@ -315,7 +315,12 @@ func _top_margin(base: float) -> float:
 		return base
 	var safe: Rect2 = Platform.get_safe_rect()
 	var status: Rect2 = MobileControls.control_rect(MobileLayout.STATUS)
-	if status.position.y < safe.position.y + 170.0:
+	var bars_on_screen: bool = false  # sobre tela preta (sem HUD) a fala fica no mesmo lugar da voz do tutorial
+	for hud: Node in get_tree().root.find_children("*", "GameHUD", true, false):
+		var bar: Control = (hud as GameHUD).player_health_bar
+		if bar != null and bar.is_visible_in_tree():
+			bars_on_screen = true
+	if bars_on_screen and status.position.y < safe.position.y + 170.0:
 		return maxf(base, status.end.y - safe.position.y + 12.0)
 	return base
 

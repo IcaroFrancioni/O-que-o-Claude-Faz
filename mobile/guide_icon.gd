@@ -67,7 +67,7 @@ func _draw() -> void:
 		&"m_weapon":
 			_draw_button(center, MobileLayout.WEAPON)
 		&"m_sword":
-			_draw_button(center, MobileLayout.SWORD)
+			_draw_stick_demo(center, false)
 		&"m_command":
 			_draw_button(center, MobileLayout.COMMAND)
 		&"m_tilt":

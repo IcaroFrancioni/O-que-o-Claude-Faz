@@ -43,8 +43,8 @@ func rodar() -> void:
 	var margins: Vector4 = mc.safe_margins()
 	var layout: MobileLayout = mc.layout
 
-	# Arrastar um controle (botão de espada) com um dedo.
-	var start: Vector2 = mc.control_center(MobileLayout.SWORD)
+	# Arrastar um controle (botão de dash) com um dedo.
+	var start: Vector2 = mc.control_center(MobileLayout.DASH)
 	var target: Vector2 = Vector2(700.0, 300.0)
 	touch(2, start, true)
 	await frames(2)
@@ -54,21 +54,21 @@ func rodar() -> void:
 	await frames(2)
 	touch(2, start, false)
 	await frames(2)
-	check(editor.selected == MobileLayout.SWORD, "tocar no controle o seleciona")
-	check(mc.control_center(MobileLayout.SWORD).distance_to(target) < 4.0, "arrastar move o botão de espada para %s (%s)" % [target, mc.control_center(MobileLayout.SWORD)])
+	check(editor.selected == MobileLayout.DASH, "tocar no controle o seleciona")
+	check(mc.control_center(MobileLayout.DASH).distance_to(target) < 4.0, "arrastar move o botão de dash para %s (%s)" % [target, mc.control_center(MobileLayout.DASH)])
 
 	# Não sai da tela: arrastar para fora fica preso na borda.
 	for far: Vector2 in [Vector2(-900, -900), Vector2(5000, 5000), Vector2(5000, -900), Vector2(-900, 5000)]:
-		editor.move_to(MobileLayout.SWORD, far)
-		var rect: Rect2 = mc.control_rect(MobileLayout.SWORD)
+		editor.move_to(MobileLayout.DASH, far)
+		var rect: Rect2 = mc.control_rect(MobileLayout.DASH)
 		check(rect.position.x >= margins.x - 0.5 and rect.position.y >= margins.y - 0.5 \
 				and rect.end.x <= view.x - margins.z + 0.5 and rect.end.y <= view.y - margins.w + 0.5,
 				"botão fica dentro da tela ao arrastar para %s (%s)" % [far, rect])
-	editor.move_to(MobileLayout.SWORD, target)
+	editor.move_to(MobileLayout.DASH, target)
 
 	# Pinça: dois dedos sobre o controle selecionado.
-	var base_scale: float = layout.get_scale(MobileLayout.SWORD)
-	var c: Vector2 = mc.control_center(MobileLayout.SWORD)
+	var base_scale: float = layout.get_scale(MobileLayout.DASH)
+	var c: Vector2 = mc.control_center(MobileLayout.DASH)
 	touch(3, c, true)
 	touch(4, c + Vector2(40, 0), true)
 	await frames(2)
@@ -77,9 +77,9 @@ func rodar() -> void:
 	touch(4, c + Vector2(80, 0), false)
 	touch(3, c, false)
 	await frames(2)
-	var grown: float = layout.get_scale(MobileLayout.SWORD)
+	var grown: float = layout.get_scale(MobileLayout.DASH)
 	check(grown > base_scale * 1.5, "pinça abrindo amplia o controle (%.2f -> %.2f)" % [base_scale, grown])
-	c = mc.control_center(MobileLayout.SWORD)
+	c = mc.control_center(MobileLayout.DASH)
 	touch(3, c, true)
 	touch(4, c + Vector2(200, 0), true)
 	await frames(2)
@@ -88,16 +88,16 @@ func rodar() -> void:
 	touch(4, c + Vector2(2, 0), false)
 	touch(3, c, false)
 	await frames(2)
-	check(is_equal_approx(layout.get_scale(MobileLayout.SWORD), MobileLayout.MIN_SCALE), "pinça fechando respeita o tamanho mínimo (%.2f)" % layout.get_scale(MobileLayout.SWORD))
-	editor.select(MobileLayout.SWORD)
+	check(is_equal_approx(layout.get_scale(MobileLayout.DASH), MobileLayout.MIN_SCALE), "pinça fechando respeita o tamanho mínimo (%.2f)" % layout.get_scale(MobileLayout.DASH))
+	editor.select(MobileLayout.DASH)
 	editor.set_selected_scale(99.0)
-	check(is_equal_approx(layout.get_scale(MobileLayout.SWORD), MobileLayout.MAX_SCALE), "o tamanho máximo é respeitado (%.2f)" % layout.get_scale(MobileLayout.SWORD))
-	var rect_big: Rect2 = mc.control_rect(MobileLayout.SWORD)
+	check(is_equal_approx(layout.get_scale(MobileLayout.DASH), MobileLayout.MAX_SCALE), "o tamanho máximo é respeitado (%.2f)" % layout.get_scale(MobileLayout.DASH))
+	var rect_big: Rect2 = mc.control_rect(MobileLayout.DASH)
 	check(rect_big.position.x >= margins.x - 0.5 and rect_big.end.x <= view.x - margins.z + 0.5, "ampliado ainda cabe na tela")
 
 	# Slider.
 	editor._slider.value = 1.2
-	check(is_equal_approx(layout.get_scale(MobileLayout.SWORD), 1.2), "o slider muda o tamanho do controle selecionado")
+	check(is_equal_approx(layout.get_scale(MobileLayout.DASH), 1.2), "o slider muda o tamanho do controle selecionado")
 
 	# Barras de status e quadro de comandos também se movem e se redimensionam.
 	var hud: GameHUD = level.get_node("HUD") as GameHUD
@@ -128,11 +128,11 @@ func rodar() -> void:
 	await tap(6, restore.get_global_rect().get_center())
 	await frames(4)
 	check(layout.is_default(), "Restaurar padrão volta ao layout do print")
-	check(mc.control_center(MobileLayout.SWORD).distance_to(Vector2(0.794, 0.664) * view) < 1.0, "botão de espada de volta à posição do print")
+	check(mc.control_center(MobileLayout.DASH).distance_to(Vector2(0.763, 0.852) * view) < 1.0, "botão de dash de volta à posição do print")
 
 	# Edita de novo e salva.
-	editor.select(MobileLayout.SWORD)
-	editor.move_to(MobileLayout.SWORD, Vector2(900.0, 250.0))
+	editor.select(MobileLayout.DASH)
+	editor.move_to(MobileLayout.DASH, Vector2(900.0, 250.0))
 	editor.set_selected_scale(1.3)
 	editor.select(MobileLayout.MOVE)
 	editor.move_to(MobileLayout.MOVE, Vector2(300.0, 500.0))
@@ -145,17 +145,17 @@ func rodar() -> void:
 	check(FileAccess.file_exists("user://teste_layout.cfg"), "arquivo user://teste_layout.cfg gravado")
 	var cfg: ConfigFile = ConfigFile.new()
 	check(cfg.load("user://teste_layout.cfg") == OK, "o arquivo é um ConfigFile válido")
-	check(is_equal_approx(float(cfg.get_value("layout", "sword_scale", 0.0)), 1.3), "escala salva = 1.3")
-	var saved_pos: Vector2 = cfg.get_value("layout", "sword_pos", Vector2.ZERO)
+	check(is_equal_approx(float(cfg.get_value("layout", "dash_scale", 0.0)), 1.3), "escala salva = 1.3")
+	var saved_pos: Vector2 = cfg.get_value("layout", "dash_pos", Vector2.ZERO)
 	check(saved_pos.distance_to(Vector2(900.0, 250.0) / view) < 0.01, "posição salva = onde o botão foi solto")
 	# Com o jogo de volta, os controles funcionam na nova posição.
 	pause_menu.resume()
 	await frames(10)
 	var swung: bool = false
-	touch(8, mc.control_center(MobileLayout.SWORD), true)
+	touch(8, mc.control_center(MobileLayout.DASH), true)
 	for i: int in 12:
 		await get_tree().physics_frame
-		if p.state == Player.State.ATTACK_MELEE:
+		if p.state == Player.State.DASH:
 			swung = true
-	touch(8, mc.control_center(MobileLayout.SWORD), false)
-	check(swung, "o botão de espada funciona na posição nova (%s)" % mc.control_center(MobileLayout.SWORD))
+	touch(8, mc.control_center(MobileLayout.DASH), false)
+	check(swung, "o botão de dash funciona na posição nova (%s)" % mc.control_center(MobileLayout.DASH))

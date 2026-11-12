@@ -102,7 +102,7 @@ func _conferir(ctx: Dictionary) -> Array[String]:
 		if (hud as GameHUD).player_health_bar != null and (hud as GameHUD).player_health_bar.is_visible_in_tree():
 			ocupados.append({"nome": "barras de status", "rect": mc.control_rect(MobileLayout.STATUS)})
 	if mc._shown:
-		for id: StringName in [MobileLayout.MOVE, MobileLayout.AIM, MobileLayout.SWORD, MobileLayout.DASH, MobileLayout.WEAPON, MobileLayout.COMMAND, MobileLayout.INTERACT]:
+		for id: StringName in [MobileLayout.MOVE, MobileLayout.AIM, MobileLayout.DASH, MobileLayout.WEAPON, MobileLayout.COMMAND, MobileLayout.INTERACT]:
 			if mc.is_control_active(id) or id in [MobileLayout.MOVE, MobileLayout.AIM]:
 				ocupados.append({"nome": "controle %s" % id, "rect": mc.control_rect(id), "circulo": true})
 		if mc._command_open():

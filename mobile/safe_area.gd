@@ -75,7 +75,7 @@ static func free_band(band: Band) -> Rect2:
 			else:
 				left = maxf(left, pause.end.x + BAND_GAP)
 	else:
-		for id: StringName in [MobileLayout.MOVE, MobileLayout.AIM, MobileLayout.SWORD, MobileLayout.DASH, MobileLayout.WEAPON, MobileLayout.COMMAND]:
+		for id: StringName in [MobileLayout.MOVE, MobileLayout.AIM, MobileLayout.DASH, MobileLayout.WEAPON, MobileLayout.COMMAND]:
 			var rect: Rect2 = MobileControls.control_rect(id)
 			if rect.end.y < safe.position.y + safe.size.y * 0.5:
 				continue  # controle fora da metade de baixo da tela
