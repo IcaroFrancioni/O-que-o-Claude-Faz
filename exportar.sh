@@ -3,7 +3,7 @@
 # gerados aqui. Saídas em build/<plataforma>/.
 #
 #   ./exportar.sh                 # modo debug (padrão), todos os alvos possíveis
-#   ./exportar.sh release         # modo release (Android release exige keystore, veja EXPORTAR.md)
+#   ./exportar.sh release         # modo release (Android release exige keystore, veja entrega/EXPORTAR.md)
 #   ./exportar.sh debug windows linux android   # só os alvos pedidos
 #
 # Alvos: windows linux linux-arm64 macos android aab ios web
@@ -38,7 +38,7 @@ TEM_TEMPLATES=1
 if [ ! -d "$DIR_TPL/$VERSAO" ]; then
   TEM_TEMPLATES=0
   echo "AVISO: templates de exportação $VERSAO não instalados em '$DIR_TPL/$VERSAO'."
-  echo "       Instale em Editor > Gerenciar templates de exportação (ou veja EXPORTAR.md)."
+  echo "       Instale em Editor > Gerenciar templates de exportação (ou veja entrega/EXPORTAR.md)."
 fi
 
 # Reimporta o projeto (gera o cache .godot/ que a exportação precisa).
@@ -67,7 +67,7 @@ for alvo in "${ALVOS[@]}"; do
     macos)
       exportar macos "macOS (PC, universal)" "build/macos/Returing.zip"
       if [ "$SISTEMA" != "Darwin" ]; then
-        PULADOS+=("macos (assinatura/notarização): só em um Mac — o .zip gerado NÃO está assinado (veja EXPORTAR.md)")
+        PULADOS+=("macos (assinatura/notarização): só em um Mac — o .zip gerado NÃO está assinado (veja entrega/EXPORTAR.md)")
       fi ;;
     web)        exportar web "Web (iPhone, Android e navegador)" "build/web/index.html" ;;
     android|aab)
@@ -77,7 +77,7 @@ for alvo in "${ALVOS[@]}"; do
       if [ "$MODO" = "release" ] && [ -z "${GODOT_ANDROID_KEYSTORE_RELEASE_PATH:-}" ]; then PULADOS+=("$alvo: release exige GODOT_ANDROID_KEYSTORE_RELEASE_PATH/_USER/_PASSWORD"); continue; fi
       if [ "$alvo" = "android" ]; then exportar android "Android (APK, arm64)" "build/android/Returing.apk"
       else
-        if [ ! -d android/build ]; then PULADOS+=("aab: instale o modelo de compilação Android (Projeto > Instalar modelo de compilação Android) — veja EXPORTAR.md"); continue; fi
+        if [ ! -d android/build ]; then PULADOS+=("aab: instale o modelo de compilação Android (Projeto > Instalar modelo de compilação Android) — veja entrega/EXPORTAR.md"); continue; fi
         exportar aab "Android (AAB, arm64)" "build/android/Returing.aab"
       fi ;;
     ios)

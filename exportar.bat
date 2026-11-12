@@ -3,7 +3,7 @@ rem Exporta o Returing para todos os alvos possiveis no Windows e pula (com avis
 rem   exportar.bat                  modo debug, todos os alvos possiveis
 rem   exportar.bat release          modo release
 rem   exportar.bat debug windows linux android    so os alvos pedidos
-rem Alvos: windows linux linux-arm64 macos android aab web   (iOS so exporta em macOS com Xcode: veja EXPORTAR.md)
+rem Alvos: windows linux linux-arm64 macos android aab web   (iOS so exporta em macOS com Xcode: veja entrega/EXPORTAR.md)
 rem Defina GODOT=C:\caminho\Godot_v4.7.2-stable_win64_console.exe se o godot nao estiver no PATH.
 setlocal EnableDelayedExpansion
 cd /d "%~dp0"
@@ -28,7 +28,7 @@ set TEMPLATES=1
 if not exist "%APPDATA%\Godot\export_templates\%VERSAO%" (
   set TEMPLATES=0
   echo AVISO: templates de exportacao %VERSAO% nao instalados em "%APPDATA%\Godot\export_templates\%VERSAO%".
-  echo        Instale em Editor ^> Gerenciar templates de exportacao ^(veja EXPORTAR.md^).
+  echo        Instale em Editor ^> Gerenciar templates de exportacao ^(veja entrega/EXPORTAR.md^).
 )
 
 "%GODOT%" --headless --path . --import >nul 2>nul
@@ -52,10 +52,10 @@ for %%A in (%ALVOS%) do (
       where java >nul 2>nul && ( call :exportar android "Android (APK, arm64)" build\android\Returing.apk ) || echo PULADO   android: JDK 17 nao encontrado
     )
   ) else if /I "%%A"=="aab" (
-    if "%ANDROID_HOME%"=="" ( echo PULADO   aab: Android SDK nao encontrado ) else if not exist android\build ( echo PULADO   aab: instale o modelo de compilacao Android ^(veja EXPORTAR.md^) ) else (
+    if "%ANDROID_HOME%"=="" ( echo PULADO   aab: Android SDK nao encontrado ) else if not exist android\build ( echo PULADO   aab: instale o modelo de compilacao Android ^(veja entrega/EXPORTAR.md^) ) else (
       call :exportar aab "Android (AAB, arm64)" build\android\Returing.aab
     )
-  ) else if /I "%%A"=="ios" ( echo PULADO   ios: so exporta em macOS com Xcode ^(veja EXPORTAR.md^)
+  ) else if /I "%%A"=="ios" ( echo PULADO   ios: so exporta em macOS com Xcode ^(veja entrega/EXPORTAR.md^)
   ) else ( echo PULADO   %%A: alvo desconhecido )
 )
 if "%FALHOU%"=="1" exit /b 1
